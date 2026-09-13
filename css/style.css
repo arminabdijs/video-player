@@ -37,7 +37,7 @@ body {
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
-    'Segoe UI',
+    "Segoe UI",
     sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -135,10 +135,7 @@ svg {
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 11px;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
+  transition: 0.2s ease;
 }
 
 .header-button:hover {
@@ -172,10 +169,7 @@ svg {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
   cursor: pointer;
   outline: none;
-  transition:
-    border-color 0.25s ease,
-    background 0.25s ease,
-    transform 0.25s ease;
+  transition: 0.25s ease;
 }
 
 .upload-box:hover,
@@ -210,7 +204,6 @@ svg {
   display: grid;
   place-items: center;
   margin-bottom: 20px;
-  color: #f2f3f5;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
   background: linear-gradient(145deg, #171c24, #0c0f14);
@@ -256,16 +249,13 @@ svg {
   border-radius: 10px;
   font-size: 11px;
   font-weight: 750;
-  box-shadow: 0 10px 35px rgba(255, 255, 255, 0.08);
 }
 
 .upload-box small {
   position: relative;
   z-index: 1;
-  max-width: 100%;
   color: var(--muted-dark);
   font-size: 9px;
-  line-height: 1.8;
 }
 
 .player-section {
@@ -311,6 +301,41 @@ svg {
   opacity: 0.35;
 }
 
+.subtitle-layer {
+  position: absolute;
+  z-index: 18;
+  right: 3%;
+  bottom: 8%;
+  left: 3%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+  direction: rtl;
+}
+
+.subtitle-text {
+  max-width: 94%;
+  padding: 0.22em 0.55em 0.3em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 0.25em;
+  font-size: clamp(14px, 2.1vw, 28px);
+  font-weight: 650;
+  line-height: 1.5;
+  text-shadow:
+    0 1px 2px #000,
+    0 2px 5px rgba(0, 0, 0, 0.85);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.subtitle-layer.hidden {
+  display: none;
+}
+
 .video-loading {
   position: absolute;
   z-index: 30;
@@ -353,9 +378,7 @@ svg {
   background: rgba(255, 255, 255, 0.96);
   border-radius: 50%;
   box-shadow: 0 15px 55px rgba(0, 0, 0, 0.5);
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
+  transition: 0.2s ease;
 }
 
 .center-play:hover {
@@ -367,8 +390,8 @@ svg {
 }
 
 .center-play svg {
-  width: 50%;
-  height: 50%;
+  width: 60%;
+  height: 60%;
   fill: currentColor;
   stroke: none;
 }
@@ -396,9 +419,7 @@ svg {
   justify-content: space-between;
   gap: 12px;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+  transition: 0.22s ease;
 }
 
 .player.controls-hidden .player-top {
@@ -463,8 +484,6 @@ svg {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   font-size: 9px;
-  pointer-events: auto;
-  transition: background 0.2s ease;
 }
 
 .top-change:hover {
@@ -479,9 +498,7 @@ svg {
   left: 0;
   padding: 0 max(17px, env(safe-area-inset-right)) max(13px, env(safe-area-inset-bottom)) max(17px, env(safe-area-inset-left));
   background: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.68) 38%, transparent 100%);
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
+  transition: 0.22s ease;
 }
 
 .controls.hidden {
@@ -529,7 +546,7 @@ svg {
 
 .progress-bar {
   width: 0;
-  background: #ff0080;
+  background: #fff;
 }
 
 .progress-thumb {
@@ -564,10 +581,6 @@ svg {
   display: flex;
   align-items: center;
   gap: 3px;
-}
-
-.controls-right,
-.controls-left {
   direction: ltr;
 }
 
@@ -580,10 +593,7 @@ svg {
   color: rgba(255, 255, 255, 0.86);
   background: transparent;
   border-radius: 10px;
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
+  transition: 0.18s ease;
 }
 
 .control-button:hover {
@@ -639,19 +649,23 @@ svg {
   cursor: pointer;
 }
 
-.volume-control input::-webkit-slider-thumb {
+.volume-control input::-webkit-slider-thumb,
+.setting-range::-webkit-slider-thumb,
+.speed-range input::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   border: 0;
   border-radius: 50%;
   background: #fff;
 }
 
-.volume-control input::-moz-range-thumb {
-  width: 11px;
-  height: 11px;
+.volume-control input::-moz-range-thumb,
+.setting-range::-moz-range-thumb,
+.speed-range input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
   border: 0;
   border-radius: 50%;
   background: #fff;
@@ -681,7 +695,8 @@ svg {
   font-variant-numeric: tabular-nums;
 }
 
-.speed-wrapper {
+.speed-wrapper,
+.subtitle-wrapper {
   position: static;
 }
 
@@ -699,9 +714,6 @@ svg {
   border-radius: 9px;
   font-size: 10px;
   font-weight: 700;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease;
 }
 
 .speed-button svg {
@@ -712,14 +724,12 @@ svg {
 .speed-button:hover,
 .speed-button.active {
   background: rgba(255, 255, 255, 0.13);
-  border-color: rgba(255, 255, 255, 0.14);
 }
 
-.speed-menu {
+.speed-menu,
+.subtitle-menu {
   position: fixed;
   z-index: 99999;
-  width: 245px;
-  padding: 15px;
   visibility: hidden;
   opacity: 0;
   transform: translateY(8px) scale(0.98);
@@ -737,13 +747,25 @@ svg {
     visibility 0.18s ease;
 }
 
-.speed-menu.open {
+.speed-menu {
+  width: 245px;
+  padding: 15px;
+}
+
+.subtitle-menu {
+  width: 275px;
+  padding: 15px;
+}
+
+.speed-menu.open,
+.subtitle-menu.open {
   visibility: visible;
   opacity: 1;
   transform: translateY(0) scale(1);
 }
 
-.speed-header {
+.speed-header,
+.menu-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -751,23 +773,27 @@ svg {
   margin-bottom: 12px;
 }
 
-.speed-header div {
+.speed-header div,
+.menu-header div {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
-.speed-header span {
+.speed-header span,
+.menu-header span {
   color: var(--muted-dark);
   font-size: 8px;
 }
 
-.speed-header strong {
+.speed-header strong,
+.menu-header strong {
   color: #f0f2f4;
   font-size: 11px;
 }
 
-.speed-header button {
+.speed-header button,
+.menu-header button {
   width: 27px;
   height: 27px;
   display: grid;
@@ -779,7 +805,8 @@ svg {
   line-height: 1;
 }
 
-.speed-header button:hover {
+.speed-header button:hover,
+.menu-header button:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
 }
@@ -797,7 +824,6 @@ svg {
   color: #fff;
   font-size: 28px;
   font-weight: 750;
-  letter-spacing: -1px;
 }
 
 .speed-current small {
@@ -845,10 +871,6 @@ svg {
   font-size: 11px;
 }
 
-.speed-range {
-  width: 100%;
-}
-
 .speed-range input {
   width: 100%;
   height: 5px;
@@ -858,25 +880,6 @@ svg {
   direction: ltr;
   background: rgba(255, 255, 255, 0.18);
   border-radius: 20px;
-}
-
-.speed-range input::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border: 0;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
-}
-
-.speed-range input::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border: 0;
-  border-radius: 50%;
-  background: #fff;
 }
 
 .speed-limits {
@@ -898,26 +901,166 @@ svg {
   border-radius: 9px;
   font-size: 10px;
   font-weight: 750;
-  transition:
-    transform 0.18s ease,
-    opacity 0.18s ease;
 }
 
-.apply-speed:hover {
-  opacity: 0.9;
+.subtitle-button {
+  position: relative;
 }
 
-.apply-speed:active {
-  transform: scale(0.98);
+.subtitle-button span {
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
 }
 
-#pipBtn:disabled {
-  display: none;
-}
-
-#pipBtn.active {
+.subtitle-button.active {
   color: #fff;
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.subtitle-upload {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #111318;
+  background: #fff;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.subtitle-upload svg {
+  width: 15px;
+  height: 15px;
+}
+
+.subtitle-file {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 10px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.subtitle-file-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.subtitle-file-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.subtitle-file-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e8eaed;
+  font-size: 9px;
+}
+
+.subtitle-file-info span {
+  color: var(--muted-dark);
+  font-size: 7px;
+}
+
+.subtitle-file > button {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border-radius: 7px;
+  font-size: 18px;
+}
+
+.subtitle-file > button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.subtitle-option {
+  padding-top: 14px;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #d9dce1;
+  font-size: 9px;
+}
+
+.option-label strong {
+  direction: ltr;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.switch {
+  position: relative;
+  width: 37px;
+  height: 21px;
+  padding: 2px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: 0.2s ease;
+}
+
+.switch span {
+  display: block;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #777d87;
+  transition: 0.2s ease;
+}
+
+.switch.active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.switch.active span {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+.setting-range {
+  width: 100%;
+  height: 4px;
+  margin-top: 9px;
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.17);
+  border-radius: 20px;
+  direction: ltr;
 }
 
 .fullscreen-close {
@@ -1039,10 +1182,6 @@ svg {
     border-radius: 19px;
   }
 
-  .controls {
-    padding-inline: max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-left));
-  }
-
   .volume-control input {
     width: 55px;
   }
@@ -1083,11 +1222,6 @@ svg {
     min-height: 36px;
     padding-inline: 10px;
     font-size: 9px;
-  }
-
-  .header-button svg {
-    width: 15px;
-    height: 15px;
   }
 
   .upload-box {
@@ -1175,7 +1309,6 @@ svg {
   }
 
   .time {
-    margin-inline-start: 2px;
     font-size: 8px;
     gap: 3px;
   }
@@ -1186,6 +1319,15 @@ svg {
     font-size: 9px;
   }
 
+  .subtitle-button {
+    width: 33px;
+    flex-basis: 33px;
+  }
+
+  .subtitle-button span {
+    font-size: 8px;
+  }
+
   #pipBtn {
     display: none;
   }
@@ -1194,7 +1336,6 @@ svg {
     min-height: 62px;
     margin-top: 8px;
     padding: 10px;
-    border-radius: 11px;
   }
 
   .file-name {
@@ -1205,11 +1346,16 @@ svg {
     font-size: 7px;
   }
 
-  .speed-menu {
+  .speed-menu,
+  .subtitle-menu {
     width: min(230px, calc(100vw - 20px));
     max-height: calc(100dvh - 20px);
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+
+  .subtitle-text {
+    font-size: clamp(13px, 4vw, 22px);
   }
 }
 
@@ -1246,23 +1392,12 @@ svg {
     height: 55px;
   }
 
-  .upload-icon svg {
-    width: 24px;
-    height: 24px;
-  }
-
   .upload-box h1 {
     font-size: 18px;
   }
 
   .upload-box p {
     font-size: 9px;
-  }
-
-  .upload-button {
-    min-height: 40px;
-    padding-inline: 16px;
-    font-size: 10px;
   }
 
   .player {
@@ -1279,10 +1414,6 @@ svg {
 
   .top-file-icon {
     display: none;
-  }
-
-  .top-change {
-    padding-inline: 7px;
   }
 
   .controls {
@@ -1310,9 +1441,9 @@ svg {
     font-size: 8px;
   }
 
-  .speed-button svg {
-    width: 10px;
-    height: 10px;
+  .subtitle-button {
+    width: 30px;
+    flex-basis: 30px;
   }
 
   .time {
@@ -1323,8 +1454,13 @@ svg {
     padding: 9px;
   }
 
-  .speed-menu {
+  .speed-menu,
+  .subtitle-menu {
     width: min(215px, calc(100vw - 16px));
+  }
+
+  .subtitle-text {
+    font-size: clamp(12px, 4.5vw, 20px);
   }
 }
 
@@ -1339,11 +1475,6 @@ svg {
     font-size: 0;
   }
 
-  .header-button svg {
-    width: 16px;
-    height: 16px;
-  }
-
   .upload-box {
     min-height: 350px;
     padding: 23px 9px;
@@ -1351,10 +1482,6 @@ svg {
 
   .upload-box h1 {
     font-size: 17px;
-  }
-
-  .upload-box p {
-    max-width: 270px;
   }
 
   .controls-main {
@@ -1372,11 +1499,17 @@ svg {
     font-size: 7px;
   }
 
+  .subtitle-button {
+    width: 28px;
+    flex-basis: 28px;
+  }
+
   .time {
     font-size: 6.5px;
   }
 
-  .speed-menu {
+  .speed-menu,
+  .subtitle-menu {
     width: calc(100vw - 12px);
   }
 }
