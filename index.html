@@ -3,561 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#07080c">
+    <meta name="theme-color" content="#141218">
     <meta name="color-scheme" content="dark">
-    <title>Video Player</title>
+    <title>Aura Material Video Player Pro</title>
     <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
 
-<main class="app">
+<div class="m3-shell">
 
-    <header class="header">
-        <div class="brand">
-            <div class="brand-icon">
-                <svg viewBox="0 0 24 24">
-                    <path d="M8 5.5v13l10-6.5L8 5.5Z"></path>
-                </svg>
+    <!-- Top App Bar -->
+    <header class="m3-top-bar">
+        <div class="top-bar-leading">
+            <div class="brand-badge">
+                <svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5L8 5.5Z"/></svg>
             </div>
-
-            <div class="brand-text">
-                <strong>Video Player</strong>
-                <span>پخش‌کننده ویدیو</span>
+            <div class="top-bar-title">
+                <span class="headline-small">Aura Player Pro</span>
+                <span class="label-small">متریال دیزاین ۳ • محلی و هوشمند</span>
             </div>
         </div>
 
-        <button class="header-button" id="changeFileHeader" type="button">
-            <svg viewBox="0 0 24 24">
-                <path d="M12 3v12"></path>
-                <path d="m7 8 5-5 5 5"></path>
-                <path d="M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4"></path>
-            </svg>
-            فایل جدید
-        </button>
-    </header>
-
-    <section class="upload-section" id="uploadSection">
-
-        <input
-            type="file"
-            id="fileInput"
-            accept="video/*,.mp4,.webm,.mkv,.mov,.avi,.m4v,.ogv,.ogg,.mpeg,.mpg,.3gp"
-            hidden
-        >
-
-        <div
-            class="upload-box"
-            id="uploadBox"
-            tabindex="0"
-            role="button"
-            aria-label="انتخاب فایل ویدیو"
-        >
-            <div class="upload-glow"></div>
-
-            <div class="upload-icon">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 16V4"></path>
-                    <path d="m7 9 5-5 5 5"></path>
-                    <path d="M5 20h14"></path>
-                </svg>
-            </div>
-
-            <h1>ویدیو را انتخاب کنید</h1>
-
-            <p>
-                فایل ویدیویی خود را انتخاب کنید یا آن را اینجا بکشید
-            </p>
-
-            <span class="upload-button">
-                انتخاب فایل
-            </span>
-
-            <small>
-                MP4 · WebM · MKV · MOV · AVI و سایر فرمت‌های پشتیبانی‌شده
-            </small>
+        <div class="search-field" id="searchFieldBox">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" id="searchInput" placeholder="جستجو میان ویدیوها...">
         </div>
 
-    </section>
-
-    <section class="player-section" id="playerSection">
-
-        <div class="player" id="player">
-
-            <video
-                id="video"
-                preload="metadata"
-                playsinline
-            ></video>
-
-            <div class="video-vignette"></div>
-
-            <div class="subtitle-layer" id="subtitleLayer"></div>
-
-            <div class="video-loading" id="videoLoading">
-                <div class="loading-ring"></div>
-            </div>
-
-            <button
-                class="center-play"
-                id="centerPlay"
-                type="button"
-                aria-label="پخش و توقف"
-            >
-                <svg viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7L8 5Z"></path>
-                </svg>
+        <div class="top-bar-actions">
+            <!-- دکمه بازگشت مخصوص صفحه پلیر -->
+            <button class="m3-btn-filled-tonal hidden" id="topBackBtn" type="button">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                <span>بازگشت به لیست ویدیوها</span>
             </button>
 
-            <div class="player-top" id="playerTop">
+            <div class="explorer-only-actions" id="explorerActions">
+                <button class="m3-btn-filled-tonal" id="openFolderBtn" type="button">
+                    <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+                    <span>انتخاب پوشه فیلم‌ها</span>
+                </button>
+            </div>
 
-                <div class="top-file">
-                    <div class="top-file-icon">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M5 3h9l5 5v13H5z"></path>
-                            <path d="M14 3v6h6"></path>
-                        </svg>
+            <button class="m3-icon-btn" id="singleFileBtn" type="button" title="انتخاب فایل تکی">
+                <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hidden Inputs -->
+    <input type="file" id="fileInput" accept="video/*,.mp4,.webm,.mkv,.mov,.avi,.m4v,.ts" hidden>
+    <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+    <input type="file" id="subtitleInput" accept=".srt,.vtt,text/vtt,application/x-subrip" hidden>
+
+    <!-- Main Workspace -->
+    <main class="m3-main-content">
+
+        <!-- File Explorer View -->
+        <section class="explorer-section" id="explorerView">
+            <div class="explorer-filter-bar">
+                <div class="m3-chips-group">
+                    <button class="m3-chip active" id="filterAll" type="button">همه ویدیوها</button>
+                    <button class="m3-chip" id="filterSubbed" type="button">ویدیوها دارای زیرنویس</button>
+                    <button class="m3-chip" id="filterNoSub" type="button">ویدیوها بدون زیرنویس</button>
+                </div>
+                <span class="video-counter" id="videoCounter">۰ ویدیو یافت شد</span>
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div class="m3-drop-zone" id="dropZone">
+                <div class="drop-icon-wrap">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                </div>
+                <h3>پوشه ویدیوها را انتخاب یا رها کنید (Drag & Drop)</h3>
+                <p>تشخیص خودکار و ساخت پوستر ویدیوها به همراه زیرنویس SRT و VTT</p>
+                <button class="m3-fab-btn" id="fabSelectFolder" type="button">
+                    <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+                    <span>انتخاب پوشه از سیستم</span>
+                </button>
+            </div>
+
+            <div class="folders-accordion" id="foldersContainer"></div>
+        </section>
+
+        <!-- Video Player Stage View -->
+        <section class="player-workspace" id="playerWorkspace">
+
+            <div class="m3-player-card" id="player">
+                <video id="video" preload="metadata" playsinline></video>
+                <div class="subtitle-layer hidden" id="subtitleLayer"></div>
+
+                <div class="video-loader" id="videoLoader">
+                    <div class="m3-circular-progress"></div>
+                </div>
+
+                <!-- Slide-over Playlist Drawer (Inside Player) -->
+                <div class="player-drawer-overlay" id="livePlaylistDrawer">
+                    <div class="drawer-header">
+                        <div class="drawer-header-text">
+                            <h3>لیست ویدیوهای پوشه</h3>
+                            <span id="drawerFolderTitle">پوشه</span>
+                        </div>
+                        <button class="m3-icon-btn" id="closeDrawerBtn" type="button" title="بستن لیست">
+                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
+                    </div>
+                    <div class="drawer-videos-list" id="drawerVideosList"></div>
+                </div>
+
+                <!-- Top Floating Bar inside Player -->
+                <div class="stage-top-bar" id="playerTop">
+                    <div class="top-nav-group">
+                        <button class="m3-icon-btn-trans toggle-drawer-btn" id="toggleDrawerBtn" type="button" title="لیست ویدیوهای پوشه">
+                            <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                        </button>
                     </div>
 
-                    <div class="top-file-text">
-                        <span class="top-file-label">در حال پخش</span>
-                        <strong id="topFileName">Video</strong>
+                    <div class="top-nav-buttons">
+                        <button class="m3-icon-btn-trans" id="prevVideoBtn" type="button" title="ویدیوی قبلی">
+                            <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                        </button>
+                        <button class="m3-icon-btn-trans" id="nextVideoBtn" type="button" title="ویدیوی بعدی">
+                            <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                        </button>
                     </div>
                 </div>
 
-                <button
-                    class="top-change"
-                    id="changeFileTop"
-                    type="button"
-                >
-                    تغییر فایل
+                <!-- Center Play/Pause Trigger -->
+                <button class="center-play-trigger" id="centerPlay" type="button" aria-label="پخش/توقف">
+                    <svg class="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7Z"/></svg>
+                    <svg class="pause-icon" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                 </button>
 
-            </div>
+                <!-- Seek Feedbacks -->
+                <div class="seek-feedback left" id="seekLeftFeedback">-10 ثانیه</div>
+                <div class="seek-feedback right" id="seekRightFeedback">+10 ثانیه</div>
 
-            <div class="controls" id="controls">
-
-                <div class="progress-area" id="progressArea">
-                    <div class="progress-track" id="progressTrack">
-                        <div class="buffer-bar" id="bufferBar"></div>
-                        <div class="progress-bar" id="progressBar"></div>
-                        <div class="progress-thumb" id="progressThumb"></div>
-                    </div>
-                </div>
-
-                <div class="controls-main">
-
-                    <div class="controls-right">
-
-                        <button
-                            class="control-button main-play"
-                            id="playBtn"
-                            type="button"
-                            aria-label="پخش"
-                        >
-                            <svg class="play-icon" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7L8 5Z"></path>
-                            </svg>
-
-                            <svg class="pause-icon" viewBox="0 0 24 24">
-                                <path d="M7 5h4v14H7z"></path>
-                                <path d="M13 5h4v14h-4z"></path>
-                            </svg>
-                        </button>
-
-                        <button
-                            class="control-button skip-button"
-                            id="backBtn"
-                            type="button"
-                            aria-label="10 ثانیه عقب"
-                        >
-                            <svg viewBox="0 0 24 24">
-                                <path d="M4 12a8 8 0 1 0 2.35-5.65"></path>
-                                <path d="M4 5v5h5"></path>
-                                <text x="12" y="15" text-anchor="middle">10</text>
-                            </svg>
-                        </button>
-
-                        <button
-                            class="control-button skip-button"
-                            id="forwardBtn"
-                            type="button"
-                            aria-label="10 ثانیه جلو"
-                        >
-                            <svg viewBox="0 0 24 24">
-                                <path d="M20 12a8 8 0 1 1-2.35-5.65"></path>
-                                <path d="M20 5v5h-5"></path>
-                                <text x="12" y="15" text-anchor="middle">10</text>
-                            </svg>
-                        </button>
-
-                        <div class="volume-control">
-
-                            <button
-                                class="control-button"
-                                id="muteBtn"
-                                type="button"
-                                aria-label="صدا"
-                            >
-                                <svg class="volume-on" viewBox="0 0 24 24">
-                                    <path d="M4 9v6h4l5 4V5L8 9H4Z"></path>
-                                    <path d="M16 9.5a4 4 0 0 1 0 5"></path>
-                                    <path d="M18.5 7a8 8 0 0 1 0 10"></path>
-                                </svg>
-
-                                <svg class="volume-off" viewBox="0 0 24 24">
-                                    <path d="M4 9v6h4l5 4V5L8 9H4Z"></path>
-                                    <path d="m17 9 4 6"></path>
-                                    <path d="m21 9-4 6"></path>
-                                </svg>
-                            </button>
-
-                            <input
-                                type="range"
-                                id="volumeRange"
-                                min="0"
-                                max="1"
-                                step="0.01"
-                                value="1"
-                                aria-label="میزان صدا"
-                            >
-
+                <!-- Bottom Glass Controls -->
+                <div class="stage-controls" id="controls">
+                    <div class="timeline-slider" id="progressArea">
+                        <div class="timeline-track">
+                            <div class="buffer-fill" id="bufferBar"></div>
+                            <div class="progress-fill" id="progressBar"></div>
+                            <div class="thumb-marker" id="progressThumb"></div>
                         </div>
-
-                        <div class="time">
-                            <span id="currentTime">00:00</span>
-                            <span>/</span>
-                            <span id="duration">00:00</span>
-                        </div>
-
                     </div>
 
-                    <div class="controls-left">
-
-                        <div class="subtitle-wrapper">
-
-                            <button
-                                class="control-button subtitle-button"
-                                id="subtitleBtn"
-                                type="button"
-                                aria-label="زیرنویس"
-                                aria-expanded="false"
-                            >
-                                <span>CC</span>
+                    <div class="controls-main-row">
+                        <div class="controls-cluster">
+                            <button class="control-icon-btn play-pause-btn" id="playBtn" type="button" aria-label="پخش">
+                                <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7Z"/></svg>
+                                <svg class="icon-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                             </button>
 
-                            <div
-                                class="subtitle-menu"
-                                id="subtitleMenu"
-                            >
-
-                                <div class="menu-header">
-                                    <div>
-                                        <span>تنظیمات پخش</span>
-                                        <strong>زیرنویس</strong>
-                                    </div>
-
-                                    <button
-                                        id="closeSubtitle"
-                                        type="button"
-                                        aria-label="بستن"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-
-                                <button
-                                    class="subtitle-upload"
-                                    id="subtitleUploadBtn"
-                                    type="button"
-                                >
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M12 16V4"></path>
-                                        <path d="m7 9 5-5 5 5"></path>
-                                        <path d="M5 20h14"></path>
-                                    </svg>
-
-                                    انتخاب فایل زیرنویس
-                                </button>
-
-                                <input
-                                    type="file"
-                                    id="subtitleInput"
-                                    accept=".srt,.vtt,text/vtt,application/x-subrip"
-                                    hidden
-                                >
-
-                                <div
-                                    class="subtitle-file"
-                                    id="subtitleFile"
-                                >
-                                    <div class="subtitle-file-icon">
-                                        CC
-                                    </div>
-
-                                    <div class="subtitle-file-info">
-                                        <strong id="subtitleFileName">
-                                            زیرنویسی انتخاب نشده
-                                        </strong>
-
-                                        <span id="subtitleStatus">
-                                            زیرنویس خاموش است
-                                        </span>
-                                    </div>
-
-                                    <button
-                                        id="removeSubtitle"
-                                        type="button"
-                                        aria-label="حذف زیرنویس"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-
-                                <div class="subtitle-option">
-
-                                    <div class="option-label">
-                                        <span>نمایش زیرنویس</span>
-
-                                        <button
-                                            class="switch"
-                                            id="subtitleToggle"
-                                            type="button"
-                                            aria-pressed="false"
-                                        >
-                                            <span></span>
-                                        </button>
-                                    </div>
-
-                                </div>
-
-                                <div class="subtitle-option">
-
-                                    <div class="option-label">
-                                        <span>اندازه</span>
-
-                                        <strong id="subtitleSizeValue">
-                                            100%
-                                        </strong>
-                                    </div>
-
-                                    <input
-                                        class="setting-range"
-                                        id="subtitleSize"
-                                        type="range"
-                                        min="70"
-                                        max="180"
-                                        step="5"
-                                        value="100"
-                                    >
-
-                                </div>
-
-                                <div class="subtitle-option">
-
-                                    <div class="option-label">
-                                        <span>فاصله از پایین</span>
-
-                                        <strong id="subtitlePositionValue">
-                                            8%
-                                        </strong>
-                                    </div>
-
-                                    <input
-                                        class="setting-range"
-                                        id="subtitlePosition"
-                                        type="range"
-                                        min="3"
-                                        max="25"
-                                        step="1"
-                                        value="8"
-                                    >
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <div class="speed-wrapper">
-
-                            <button
-                                class="speed-button"
-                                id="speedBtn"
-                                type="button"
-                                aria-expanded="false"
-                                aria-haspopup="dialog"
-                            >
-                                <span id="speedValue">1x</span>
-
+                            <button class="control-icon-btn skip-btn" id="backBtn" type="button" title="۱۰ ثانیه عقب">
                                 <svg viewBox="0 0 24 24">
-                                    <path d="m7 10 5 5 5-5"></path>
+                                    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
                                 </svg>
+                                <span class="skip-num">10</span>
                             </button>
 
-                            <div
-                                class="speed-menu"
-                                id="speedMenu"
-                                role="dialog"
-                                aria-label="تنظیم سرعت پخش"
-                            >
+                            <button class="control-icon-btn skip-btn" id="forwardBtn" type="button" title="۱۰ ثانیه جلو">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/>
+                                </svg>
+                                <span class="skip-num">10</span>
+                            </button>
 
-                                <div class="speed-header">
-                                    <div>
-                                        <span>تنظیم پخش</span>
-                                        <strong>سرعت ویدیو</strong>
-                                    </div>
-
-                                    <button
-                                        id="closeSpeed"
-                                        type="button"
-                                        aria-label="بستن"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-
-                                <div class="speed-current">
-                                    <span id="speedPreview">1</span>
-                                    <small>x</small>
-                                </div>
-
-                                <div class="speed-input-wrap">
-                                    <input
-                                        type="number"
-                                        id="speedInput"
-                                        min="0.1"
-                                        max="16"
-                                        step="0.01"
-                                        value="1"
-                                        inputmode="decimal"
-                                        aria-label="سرعت پخش"
-                                    >
-
-                                    <span>x</span>
-                                </div>
-
-                                <div class="speed-range">
-                                    <input
-                                        type="range"
-                                        id="speedRange"
-                                        min="0.1"
-                                        max="16"
-                                        step="0.01"
-                                        value="1"
-                                        aria-label="سرعت پخش"
-                                    >
-                                </div>
-
-                                <div class="speed-limits">
-                                    <span>0.1x</span>
-                                    <span>16x</span>
-                                </div>
-
-                                <button
-                                    class="apply-speed"
-                                    id="applySpeed"
-                                    type="button"
-                                >
-                                    اعمال سرعت
+                            <div class="volume-cluster">
+                                <button class="control-icon-btn" id="muteBtn" type="button" aria-label="صدا">
+                                    <svg class="vol-on" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                    <svg class="vol-off" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
                                 </button>
-
+                                <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="1" class="m3-range">
                             </div>
 
+                            <div class="time-readout">
+                                <span id="currentTime">00:00</span>
+                                <span class="time-sep">/</span>
+                                <span id="duration">00:00</span>
+                            </div>
                         </div>
 
-                        <button
-                            class="control-button"
-                            id="pipBtn"
-                            type="button"
-                            aria-label="تصویر در تصویر"
-                        >
-                            <svg viewBox="0 0 24 24">
-                                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                <rect x="12" y="12" width="7" height="5" rx="1"></rect>
-                            </svg>
-                        </button>
+                        <div class="controls-cluster">
+                            <div class="subtitle-wrapper">
+                                <button class="control-button subtitle-button" id="subtitleBtn" type="button" aria-label="زیرنویس">
+                                    <span>CC</span>
+                                </button>
+                                <div class="subtitle-menu" id="subtitleMenu">
+                                    <div class="menu-header">
+                                        <div>
+                                            <span>تنظیمات پخش</span>
+                                            <strong>زیرنویس</strong>
+                                        </div>
+                                        <button id="closeSubtitle" type="button">×</button>
+                                    </div>
+                                    <button class="subtitle-upload" id="subtitleUploadBtn" type="button">انتخاب فایل زیرنویس</button>
+                                    <div class="subtitle-file" id="subtitleFile">
+                                        <div class="subtitle-file-icon">CC</div>
+                                        <div class="subtitle-file-info">
+                                            <strong id="subtitleFileName">زیرنویسی انتخاب نشده</strong>
+                                            <span id="subtitleStatus">زیرنویس خاموش است</span>
+                                        </div>
+                                        <button id="removeSubtitle" type="button">×</button>
+                                    </div>
+                                    <div class="subtitle-option">
+                                        <div class="option-label">
+                                            <span>نمایش زیرنویس</span>
+                                            <button class="switch" id="subtitleToggle" type="button"><span></span></button>
+                                        </div>
+                                    </div>
+                                    <div class="subtitle-option">
+                                        <div class="option-label">
+                                            <span>پس‌زمینه زیرنویس</span>
+                                            <button class="switch active" id="subBgToggleBtn" type="button"><span></span></button>
+                                        </div>
+                                    </div>
+                                    <div class="subtitle-option">
+                                        <div class="option-label">
+                                            <span>اندازه</span>
+                                            <strong id="subtitleSizeValue">100%</strong>
+                                        </div>
+                                        <input class="setting-range" id="subtitleSize" type="range" min="70" max="180" step="5" value="100">
+                                    </div>
+                                    <div class="subtitle-option">
+                                        <div class="option-label">
+                                            <span>فاصله از پایین</span>
+                                            <strong id="subtitlePositionValue">8%</strong>
+                                        </div>
+                                        <input class="setting-range" id="subtitlePosition" type="range" min="3" max="25" step="1" value="8">
+                                    </div>
+                                </div>
+                            </div>
 
-                        <button
-                            class="control-button"
-                            id="fullscreenBtn"
-                            type="button"
-                            aria-label="تمام صفحه"
-                        >
-                            <svg class="fullscreen-open" viewBox="0 0 24 24">
-                                <path d="M8 3H3v5"></path>
-                                <path d="M16 3h5v5"></path>
-                                <path d="M21 16v5h-5"></path>
-                                <path d="M3 16v5h5"></path>
-                            </svg>
+                            <div class="speed-wrapper">
+                                <button class="speed-button" id="speedBtn" type="button">
+                                    <span id="speedValue">1x</span>
+                                    <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg>
+                                </button>
+                                <div class="speed-menu" id="speedMenu">
+                                    <div class="speed-header">
+                                        <div>
+                                            <span>تنظیم پخش</span>
+                                            <strong>سرعت ویدیو</strong>
+                                        </div>
+                                        <button id="closeSpeed" type="button">×</button>
+                                    </div>
+                                    <div class="speed-current">
+                                        <span id="speedPreview">1</span>
+                                        <small>x</small>
+                                    </div>
+                                    <div class="speed-input-wrap">
+                                        <input type="number" id="speedInput" min="0.1" max="16" step="0.01" value="1">
+                                        <span>x</span>
+                                    </div>
+                                    <div class="speed-range">
+                                        <input type="range" id="speedRange" min="0.1" max="16" step="0.01" value="1">
+                                    </div>
+                                    <div class="speed-limits">
+                                        <span>0.1x</span>
+                                        <span>16x</span>
+                                    </div>
+                                    <button class="apply-speed" id="applySpeed" type="button">اعمال سرعت</button>
+                                </div>
+                            </div>
 
-                            <svg class="fullscreen-close" viewBox="0 0 24 24">
-                                <path d="m9 3-6 6"></path>
-                                <path d="M3 3v6h6"></path>
-                                <path d="m15 21 6-6"></path>
-                                <path d="M21 21v-6h-6"></path>
-                            </svg>
-                        </button>
+                            <button class="control-icon-btn" id="pipBtn" type="button" title="تصویر در تصویر">
+                                <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
+                            </button>
 
+                            <button class="control-icon-btn" id="fullscreenBtn" type="button" title="تمام‌صفحه">
+                                <svg class="fs-open" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                                <svg class="fs-close" viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z"/></svg>
+                            </button>
+                        </div>
                     </div>
-
                 </div>
-
             </div>
 
-        </div>
+        </section>
 
-        <div class="file-info">
+    </main>
 
-            <div class="file-details">
-
-                <div class="file-name" id="fileName">
-                    -
-                </div>
-
-                <div class="file-meta">
-                    <span id="fileSize">-</span>
-                    <span>•</span>
-                    <span id="videoResolution">-</span>
-                </div>
-
-            </div>
-
-            <div class="keyboard-hints">
-
-                <div>
-                    <kbd>Space</kbd>
-                    <small>پخش</small>
-                </div>
-
-                <div>
-                    <kbd>← →</kbd>
-                    <small>حرکت</small>
-                </div>
-
-                <div>
-                    <kbd>F</kbd>
-                    <small>تمام صفحه</small>
-                </div>
-
-                <div>
-                    <kbd>M</kbd>
-                    <small>صدا</small>
-                </div>
-
-                <div>
-                    <kbd>C</kbd>
-                    <small>زیرنویس</small>
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-</main>
+</div>
 
 <script src="./scripts/script.js"></script>
-
 </body>
 </html>
