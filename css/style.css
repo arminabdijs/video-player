@@ -77,6 +77,12 @@ svg {
   height: 20px;
   fill: currentColor;
 }
+svg.play-icon,
+svg.pause-icon {
+  width: 50px;
+  height: 50px;
+  fill: currentColor;
+}
 
 .hidden {
   display: none !important;
