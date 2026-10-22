@@ -16,6 +16,10 @@ const singleFileBtn = document.getElementById('singleFileBtn');
 const fileInput = document.getElementById('fileInput');
 const folderInput = document.getElementById('folderInput');
 const subtitleInput = document.getElementById('subtitleInput');
+const embeddedSubtitleSection = document.getElementById('embeddedSubtitleSection');
+const embeddedSubtitleTracksList = document.getElementById('embeddedSubtitleTracks');
+const embeddedSubtitleCount = document.getElementById('embeddedSubtitleCount');
+const embeddedSubtitleMessage = document.getElementById('embeddedSubtitleMessage');
 
 const playerStage = document.getElementById('player');
 const video = document.getElementById('video');
@@ -112,6 +116,17 @@ let subtitles = [];
 let subtitleEnabled = false;
 let subtitleFile = null;
 let currentSubtitleIndex = -1;
+let activeSubtitleSource = 'none';
+let externalSubtitleEntry = null;
+let embeddedSubtitleTracks = [];
+let matroskaSubtitleTracks = [];
+let nativeSubtitleTracks = [];
+let selectedEmbeddedSubtitleKey = null;
+let embeddedSubtitleScanController = null;
+let embeddedSubtitleScanGeneration = 0;
+let embeddedSubtitleScanProgress = 0;
+let nativeTextTrackListenerAttached = false;
+let embeddedSubtitleNotice = '';
 
 let activeObjectURL = null;
 
@@ -1108,6 +1123,11 @@ function playIndex(index, folderVideosList = null) {
     loadSubtitle(item.subFiles[0]);
   }
 
+  // Read text subtitle tracks embedded in MKV without changing the player UI.
+  // External SRT/VTT keeps its current priority; embedded tracks remain selectable.
+  const subtitleScanGeneration = embeddedSubtitleScanGeneration;
+  startMatroskaSubtitleScan(item.file, subtitleScanGeneration);
+
   updateProgress();
 
   showControls();
@@ -1292,27 +1312,49 @@ function returnToExplorer(pauseVideo = true) {
    SUBTITLES
 ========================================================= */
 
+function disableNativeSubtitleTracks() {
+  try {
+    const tracks = video.textTracks;
+    for (let index = 0; tracks && index < tracks.length; index += 1) {
+      try {
+        if (tracks[index]) tracks[index].mode = 'disabled';
+      } catch {
+        // Some browsers expose read-only or incomplete native track objects.
+      }
+    }
+  } catch {
+    // TextTrackList is optional in older browsers.
+  }
+}
+
 function resetSubtitlesForVideo() {
+  embeddedSubtitleScanGeneration += 1;
+  embeddedSubtitleScanController?.abort();
+  embeddedSubtitleScanController = null;
+  disableNativeSubtitleTracks();
+
   subtitles = [];
   subtitleEnabled = false;
   subtitleFile = null;
   currentSubtitleIndex = -1;
+  activeSubtitleSource = 'none';
+  externalSubtitleEntry = null;
+  embeddedSubtitleTracks = [];
+  matroskaSubtitleTracks = [];
+  nativeSubtitleTracks = [];
+  selectedEmbeddedSubtitleKey = null;
+  embeddedSubtitleScanProgress = 0;
+  embeddedSubtitleNotice = '';
 
   subtitleLayer.innerHTML = '';
-
   subtitleLayer.classList.add('hidden');
-
   subtitleToggle.classList.remove('active');
-
   subtitleToggle.setAttribute('aria-pressed', 'false');
-
   subBtn.classList.remove('active');
-
   subtitleFileName.textContent = 'زیرنویسی انتخاب نشده';
-
   subtitleStatus.textContent = 'زیرنویس خاموش است';
-
   subtitleInput.value = '';
+  renderEmbeddedSubtitleTracks();
 }
 
 function clearCurrentSubtitle() {
@@ -1320,20 +1362,355 @@ function clearCurrentSubtitle() {
   subtitleEnabled = false;
   subtitleFile = null;
   currentSubtitleIndex = -1;
+  activeSubtitleSource = 'none';
+  externalSubtitleEntry = null;
+  selectedEmbeddedSubtitleKey = null;
 
   subtitleLayer.innerHTML = '';
-
   subtitleLayer.classList.add('hidden');
-
   subtitleToggle.classList.remove('active');
-
   subtitleToggle.setAttribute('aria-pressed', 'false');
-
   subBtn.classList.remove('active');
-
   subtitleFileName.textContent = 'زیرنویسی انتخاب نشده';
-
   subtitleStatus.textContent = 'زیرنویس خاموش است';
+  renderEmbeddedSubtitleTracks();
+}
+
+function refreshEmbeddedSubtitleTracks() {
+  // Keep the Matroska parser's track objects first; browser-native text tracks
+  // are included for media containers/browsers that expose them via TextTrackList.
+  const combined = [...matroskaSubtitleTracks];
+  const existingKeys = new Set(combined.map((track) => track.key));
+  for (const track of nativeSubtitleTracks) {
+    if (!existingKeys.has(track.key)) combined.push(track);
+  }
+  embeddedSubtitleTracks = combined;
+  renderEmbeddedSubtitleTracks();
+}
+
+function renderEmbeddedSubtitleTracks() {
+  if (!embeddedSubtitleTracksList || !embeddedSubtitleSection) return;
+
+  embeddedSubtitleTracksList.replaceChildren();
+  let visibleCount = embeddedSubtitleTracks.length;
+
+  if (externalSubtitleEntry && embeddedSubtitleTracks.length) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'embedded-subtitle-track';
+    button.classList.toggle('active', activeSubtitleSource === 'external');
+    button.setAttribute('aria-pressed', String(activeSubtitleSource === 'external'));
+
+    const label = document.createElement('span');
+    label.className = 'embedded-subtitle-track-label';
+    label.textContent = `فایل جداگانه: ${externalSubtitleEntry.file.name}`;
+    button.appendChild(label);
+
+    const state = document.createElement('span');
+    state.className = 'embedded-subtitle-track-state';
+    state.textContent = activeSubtitleSource === 'external' ? 'فعال' : 'انتخاب';
+    button.appendChild(state);
+
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectExternalSubtitle();
+    });
+    embeddedSubtitleTracksList.appendChild(button);
+    visibleCount += 1;
+  }
+
+  for (const track of embeddedSubtitleTracks) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'embedded-subtitle-track';
+    const active = activeSubtitleSource === 'embedded' && selectedEmbeddedSubtitleKey === track.key;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+
+    const label = document.createElement('span');
+    label.className = 'embedded-subtitle-track-label';
+    label.textContent = track.label || `ترک ${track.number || ''}`;
+    button.appendChild(label);
+
+    const state = document.createElement('span');
+    state.className = 'embedded-subtitle-track-state';
+    state.textContent = active ? 'فعال' : (track.isDefault ? 'پیش‌فرض' : 'انتخاب');
+    button.appendChild(state);
+
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectEmbeddedSubtitleTrack(track.key);
+    });
+    embeddedSubtitleTracksList.appendChild(button);
+  }
+
+  embeddedSubtitleCount.textContent = visibleCount ? `${visibleCount} ترک` : '';
+  embeddedSubtitleMessage.textContent = embeddedSubtitleNotice || '';
+  embeddedSubtitleSection.classList.toggle('hidden', visibleCount === 0 && !embeddedSubtitleNotice);
+}
+
+function selectExternalSubtitle() {
+  if (!externalSubtitleEntry) return;
+
+  activeSubtitleSource = 'external';
+  selectedEmbeddedSubtitleKey = null;
+  subtitleFile = externalSubtitleEntry.file;
+  subtitles = externalSubtitleEntry.cues;
+  subtitleEnabled = true;
+  currentSubtitleIndex = -1;
+
+  subtitleFileName.textContent = subtitleFile.name;
+  subtitleStatus.textContent = `${subtitles.length} بخش زیرنویس · فعال`;
+  subtitleToggle.classList.add('active');
+  subtitleToggle.setAttribute('aria-pressed', 'true');
+  subBtn.classList.add('active');
+  renderEmbeddedSubtitleTracks();
+  updateSubtitles();
+}
+
+function selectEmbeddedSubtitleTrack(key) {
+  const track = embeddedSubtitleTracks.find((entry) => entry.key === key);
+  if (!track) return;
+
+  if (track.nativeTrack) {
+    try {
+      track.nativeTrack.mode = 'hidden';
+    } catch {
+      // Use the cues already exposed by the browser when mode cannot be changed.
+    }
+    track.cues = readNativeSubtitleCues(track.nativeTrack);
+  }
+
+  activeSubtitleSource = 'embedded';
+  selectedEmbeddedSubtitleKey = track.key;
+  subtitleFile = null;
+  subtitles = track.cues || [];
+  subtitleEnabled = true;
+  currentSubtitleIndex = -1;
+
+  subtitleFileName.textContent = track.label || 'زیرنویس داخلی';
+  subtitleStatus.textContent = subtitles.length
+    ? `${subtitles.length} بخش زیرنویس داخلی · فعال`
+    : 'ترک شناسایی شد؛ در حال خواندن زیرنویس…';
+  subtitleToggle.classList.add('active');
+  subtitleToggle.setAttribute('aria-pressed', 'true');
+  subBtn.classList.add('active');
+  renderEmbeddedSubtitleTracks();
+  updateSubtitles();
+
+  if (track.nativeTrack && !subtitles.length) {
+    window.setTimeout(() => {
+      if (activeSubtitleSource !== 'embedded' || selectedEmbeddedSubtitleKey !== track.key) return;
+      track.cues = readNativeSubtitleCues(track.nativeTrack);
+      subtitles = track.cues;
+      currentSubtitleIndex = -1;
+      subtitleStatus.textContent = subtitles.length
+        ? `${subtitles.length} بخش زیرنویس داخلی · فعال`
+        : 'مرورگر متن این ترک را در دسترس قرار نداد.';
+      updateSubtitles();
+    }, 180);
+  }
+}
+
+function readNativeSubtitleCues(textTrack) {
+  let cueList = null;
+  try {
+    cueList = textTrack?.cues;
+  } catch {
+    return [];
+  }
+  if (!cueList) return [];
+
+  const result = [];
+  for (let index = 0; index < cueList.length; index += 1) {
+    const cue = cueList[index];
+    const text = cleanSubtitleText(cue?.text || '');
+    const start = Number(cue?.startTime);
+    const end = Number(cue?.endTime);
+    if (!text || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    result.push({ start, end, text });
+  }
+  return result.sort((a, b) => a.start - b.start);
+}
+
+
+function attachNativeSubtitleTrackEvents() {
+  if (nativeTextTrackListenerAttached || !video.textTracks) return;
+  const trackList = video.textTracks;
+  if (typeof trackList.addEventListener !== 'function') return;
+
+  const scheduleDiscovery = () => {
+    const generation = embeddedSubtitleScanGeneration;
+    window.setTimeout(() => discoverNativeSubtitleTracks(generation), 0);
+  };
+  trackList.addEventListener('addtrack', scheduleDiscovery);
+  trackList.addEventListener('removetrack', scheduleDiscovery);
+  nativeTextTrackListenerAttached = true;
+}
+
+function discoverNativeSubtitleTracks(generation = embeddedSubtitleScanGeneration) {
+  if (generation !== embeddedSubtitleScanGeneration || !video.textTracks) return;
+  attachNativeSubtitleTrackEvents();
+
+  const discovered = [];
+  const trackList = video.textTracks;
+  for (let index = 0; index < trackList.length; index += 1) {
+    const textTrack = trackList[index];
+    if (!textTrack) continue;
+    const kind = String(textTrack.kind || '').toLowerCase();
+    if (['chapters', 'metadata', 'descriptions'].includes(kind)) continue;
+    if (kind && !['subtitles', 'captions'].includes(kind)) continue;
+
+    try {
+      textTrack.mode = 'hidden';
+    } catch {
+      // Some native tracks are exposed read-only.
+    }
+
+    const language = textTrack.language || 'und';
+    const label = textTrack.label || (language === 'und' ? `زیرنویس داخلی ${index + 1}` : language);
+    discovered.push({
+      key: `native-${index}`,
+      source: 'native',
+      nativeTrack: textTrack,
+      number: index + 1,
+      language,
+      label,
+      isDefault: false,
+      cues: readNativeSubtitleCues(textTrack),
+      supported: true,
+      loading: false,
+    });
+  }
+
+  nativeSubtitleTracks = discovered;
+  refreshEmbeddedSubtitleTracks();
+
+  if (activeSubtitleSource === 'embedded' && selectedEmbeddedSubtitleKey?.startsWith('native-')) {
+    const selectedNativeTrack = nativeSubtitleTracks.find((track) => track.key === selectedEmbeddedSubtitleKey);
+    if (selectedNativeTrack) {
+      subtitles = selectedNativeTrack.cues;
+      currentSubtitleIndex = -1;
+      if (subtitleEnabled) updateSubtitles();
+      if (subtitleEnabled && subtitles.length) {
+        subtitleStatus.textContent = `${subtitles.length} بخش زیرنویس داخلی · فعال`;
+      }
+    }
+  }
+
+  const currentFile = flatPlaylist[currentPlaylistIndex]?.file;
+  const matroskaScanPending = /\.mkv$/i.test(currentFile?.name || '')
+    && Boolean(embeddedSubtitleScanController)
+    && matroskaSubtitleTracks.length === 0;
+
+  if (activeSubtitleSource === 'none' && discovered.length && !matroskaScanPending) {
+    selectEmbeddedSubtitleTrack(discovered[0].key);
+  }
+}
+
+function startMatroskaSubtitleScan(file, generation) {
+  if (!/\.mkv$/i.test(file?.name || '') || !window.AuraMatroskaSubtitleReader?.read) return;
+  if (generation !== embeddedSubtitleScanGeneration) return;
+
+  const controller = new AbortController();
+  embeddedSubtitleScanController = controller;
+  embeddedSubtitleNotice = 'در حال بررسی ترک‌های زیرنویس داخل فایل…';
+  renderEmbeddedSubtitleTracks();
+
+  window.AuraMatroskaSubtitleReader.read(file, {
+    signal: controller.signal,
+    onTracks: (tracks, unsupportedTracks) => {
+      if (generation !== embeddedSubtitleScanGeneration || controller.signal.aborted) return;
+
+      matroskaSubtitleTracks = tracks.map((track) => ({
+        key: `mkv-${track.number}`,
+        source: 'matroska',
+        number: track.number,
+        label: track.label,
+        language: track.language,
+        codec: track.codec,
+        isDefault: track.isDefault,
+        isForced: track.isForced,
+        cues: track.cues,
+        readerTrack: track,
+        supported: true,
+        loading: true,
+      }));
+
+      const imageBased = unsupportedTracks.filter((track) => /PGS|VOBSUB/i.test(track.codec || ''));
+      if (tracks.length) {
+        embeddedSubtitleNotice = imageBased.length
+          ? 'زیرنویس متنی قابل انتخاب است؛ این فایل یک ترک تصویری PGS/VobSub هم دارد که با این روش استخراج نمی‌شود.'
+          : 'ترک‌های زیرنویس متنی داخل ویدئو شناسایی شدند.';
+      } else if (imageBased.length) {
+        embeddedSubtitleNotice = `زیرنویس این فایل تصویری است (${imageBased.map((track) => track.codec).join('، ')}). این نسخه استخراج ترک‌های تصویری را پشتیبانی نمی‌کند.`;
+      } else if (unsupportedTracks.length) {
+        embeddedSubtitleNotice = `ترک زیرنویس پیدا شد، اما قالب آن پشتیبانی نمی‌شود: ${unsupportedTracks.map((track) => track.codec || 'نامشخص').join('، ')}.`;
+      } else {
+        embeddedSubtitleNotice = 'ترک زیرنویس متنی داخل این فایل پیدا نشد.';
+      }
+
+      refreshEmbeddedSubtitleTracks();
+
+      if (activeSubtitleSource === 'none' && matroskaSubtitleTracks.length) {
+        const preferred = matroskaSubtitleTracks.find((track) => track.isDefault)
+          || matroskaSubtitleTracks.find((track) => track.isForced)
+          || matroskaSubtitleTracks[0];
+        selectEmbeddedSubtitleTrack(preferred.key);
+      } else if (activeSubtitleSource === 'none' && nativeSubtitleTracks.length) {
+        selectEmbeddedSubtitleTrack(nativeSubtitleTracks[0].key);
+      }
+    },
+    onCues: (readerTrack, batch, complete) => {
+      if (generation !== embeddedSubtitleScanGeneration || controller.signal.aborted) return;
+      const track = matroskaSubtitleTracks.find((entry) => entry.number === readerTrack.number);
+      if (!track) return;
+
+      track.cues = readerTrack.cues;
+      track.loading = !complete;
+      if (activeSubtitleSource === 'embedded' && selectedEmbeddedSubtitleKey === track.key) {
+        subtitles = track.cues;
+        currentSubtitleIndex = -1;
+        if (subtitleEnabled) {
+          subtitleStatus.textContent = complete
+            ? `${subtitles.length} بخش زیرنویس داخلی · فعال`
+            : `در حال استخراج زیرنویس… ${subtitles.length} بخش`;
+          updateSubtitles();
+        }
+      }
+      if (complete && readerTrack.hasSkippedLacedBlocks) {
+        embeddedSubtitleNotice = `${readerTrack.label}: تعدادی از بخش‌های لِیس‌شده قابل خواندن نبودند.`;
+        renderEmbeddedSubtitleTracks();
+      }
+    },
+    onProgress: (processed, total) => {
+      if (generation !== embeddedSubtitleScanGeneration || controller.signal.aborted) return;
+      const percent = total ? Math.floor((processed / total) * 100) : 100;
+      if (percent !== embeddedSubtitleScanProgress && (percent % 10 === 0 || percent === 100)) {
+        embeddedSubtitleScanProgress = percent;
+        if (activeSubtitleSource === 'embedded' && selectedEmbeddedSubtitleKey?.startsWith('mkv-')) {
+          const activeTrack = embeddedSubtitleTracks.find((track) => track.key === selectedEmbeddedSubtitleKey);
+          if (activeTrack?.loading) subtitleStatus.textContent = `در حال استخراج زیرنویس… ${percent}%`;
+        }
+      }
+    },
+  }).then((result) => {
+    if (generation !== embeddedSubtitleScanGeneration || controller.signal.aborted || result?.aborted) return;
+    embeddedSubtitleScanController = null;
+    if (!matroskaSubtitleTracks.length && !nativeSubtitleTracks.length) {
+      renderEmbeddedSubtitleTracks();
+    }
+  }).catch((error) => {
+    if (generation !== embeddedSubtitleScanGeneration || controller.signal.aborted) return;
+    embeddedSubtitleScanController = null;
+    embeddedSubtitleNotice = error?.message
+      ? `خواندن زیرنویس داخلی ناموفق بود: ${error.message}`
+      : 'خواندن زیرنویس داخلی ناموفق بود.';
+    renderEmbeddedSubtitleTracks();
+    if (activeSubtitleSource === 'none' && nativeSubtitleTracks.length) {
+      selectEmbeddedSubtitleTrack(nativeSubtitleTracks[0].key);
+    }
+  });
 }
 
 function parseTimestamp(value) {
@@ -1476,6 +1853,9 @@ async function loadSubtitle(file) {
       return false;
     }
 
+    externalSubtitleEntry = { file, cues: parsed };
+    activeSubtitleSource = 'external';
+    selectedEmbeddedSubtitleKey = null;
     subtitles = parsed;
     subtitleFile = file;
 
@@ -1492,6 +1872,7 @@ async function loadSubtitle(file) {
 
     subBtn.classList.add('active');
 
+    renderEmbeddedSubtitleTracks();
     updateSubtitles();
 
     return true;
@@ -1605,7 +1986,7 @@ function updateSubtitles() {
 }
 
 function toggleSubtitle() {
-  if (!subtitles.length) {
+  if (!subtitles.length && activeSubtitleSource !== 'embedded') {
     subtitleInput.click();
     return;
   }
@@ -1619,7 +2000,9 @@ function toggleSubtitle() {
   subBtn.classList.toggle('active', subtitleEnabled);
 
   if (subtitleEnabled) {
-    subtitleStatus.textContent = `${subtitles.length} بخش زیرنویس · فعال`;
+    subtitleStatus.textContent = activeSubtitleSource === 'embedded'
+      ? (subtitles.length ? `${subtitles.length} بخش زیرنویس داخلی · فعال` : 'در حال خواندن زیرنویس داخلی…')
+      : `${subtitles.length} بخش زیرنویس · فعال`;
 
     currentSubtitleIndex = -1;
 
@@ -1631,6 +2014,8 @@ function toggleSubtitle() {
 
     subtitleLayer.innerHTML = '';
   }
+
+  renderEmbeddedSubtitleTracks();
 }
 
 /* =========================================================
@@ -2304,6 +2689,11 @@ video.addEventListener('loadedmetadata', () => {
   updateVolumeUI();
 
   hidePlayerStatus();
+
+  const subtitleGeneration = embeddedSubtitleScanGeneration;
+  window.setTimeout(() => discoverNativeSubtitleTracks(subtitleGeneration), 0);
+  window.setTimeout(() => discoverNativeSubtitleTracks(subtitleGeneration), 220);
+  window.setTimeout(() => discoverNativeSubtitleTracks(subtitleGeneration), 800);
 });
 
 video.addEventListener('waiting', () => setLoading(true));

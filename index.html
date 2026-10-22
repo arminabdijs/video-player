@@ -327,6 +327,15 @@
 
                       <button class="subtitle-upload" id="subtitleUploadBtn" type="button">انتخاب فایل زیرنویس</button>
 
+                      <div class="subtitle-option embedded-subtitle-section hidden" id="embeddedSubtitleSection">
+                        <div class="option-label">
+                          <span>زیرنویس‌های داخل ویدئو</span>
+                          <small id="embeddedSubtitleCount"></small>
+                        </div>
+                        <div class="embedded-subtitle-tracks" id="embeddedSubtitleTracks"></div>
+                        <span class="embedded-subtitle-message" id="embeddedSubtitleMessage"></span>
+                      </div>
+
                       <div class="subtitle-file" id="subtitleFile">
                         <div class="subtitle-file-icon">CC</div>
 
@@ -457,6 +466,7 @@
          JAVASCRIPT
     ========================================================== -->
 
+    <script src="./scripts/matroska-subtitles.js"></script>
     <script src="./scripts/script.js"></script>
   </body>
 </html>

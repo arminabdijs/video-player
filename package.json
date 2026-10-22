@@ -1,0 +1,9 @@
+{
+  "name": "aura-material-video-player-pro",
+  "private": true,
+  "version": "1.0.1",
+  "description": "Aura Material Video Player Pro with embedded Matroska text subtitle support",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  }
+}
