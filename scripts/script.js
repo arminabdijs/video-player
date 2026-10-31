@@ -583,7 +583,7 @@ function rememberPoster(card) {
     }
 
     // Thumbnails are regenerated only when the card comes back near the viewport.
-    if (oldestCard.isConnected) observeCard(oldestCard);
+    if (oldestCard.isConnected && thumbObserver) observeCard(oldestCard);
   }
 }
 
