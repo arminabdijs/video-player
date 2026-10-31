@@ -108,6 +108,7 @@ const STORAGE_SPEED = 'aura_speed';
 
 let library = [];
 let flatPlaylist = [];
+let flatPlaylistIndexByFile = new Map();
 
 let currentPlaylistIndex = -1;
 let currentFolderVideos = [];
@@ -298,6 +299,12 @@ function hidePlayerStatus() {
 
 const posterQueue = [];
 const posterQueued = new WeakSet();
+const posterCache = new Map();
+const MAX_CACHED_POSTERS = 96;
+const POSTER_WIDTH = 320;
+const POSTER_HEIGHT = 180;
+const EXPLORER_BATCH_SIZE = 60;
+const DRAWER_BATCH_SIZE = 80;
 
 let posterWorkerRunning = false;
 let activePosterCleanup = null;
@@ -319,7 +326,7 @@ const thumbObserver =
           }
         },
         {
-          rootMargin: '300px 0px',
+          rootMargin: '100px 0px',
           threshold: 0.01,
         },
       )
@@ -462,8 +469,9 @@ function loadPosterForCard(card, file) {
 
         const canvas = document.createElement('canvas');
 
-        const outW = 640;
-        const outH = 360;
+        // Keep decoded thumbnail memory small; full-resolution frames are wasteful in a library grid.
+        const outW = POSTER_WIDTH;
+        const outH = POSTER_HEIGHT;
 
         canvas.width = outW;
         canvas.height = outH;
@@ -504,6 +512,7 @@ function loadPosterForCard(card, file) {
         wrapper.querySelector('.poster-canvas')?.remove();
 
         wrapper.appendChild(canvas);
+        rememberPoster(card);
       } catch {
         // Keep default placeholder.
       } finally {
@@ -547,6 +556,34 @@ function loadPosterForCard(card, file) {
     posterVideo.src = url;
     posterVideo.load();
   });
+}
+
+function rememberPoster(card) {
+  if (!card?.isConnected) return;
+
+  posterCache.delete(card);
+  posterCache.set(card, true);
+
+  while (posterCache.size > MAX_CACHED_POSTERS) {
+    const oldestCard = posterCache.keys().next().value;
+    posterCache.delete(oldestCard);
+
+    const oldCanvas = oldestCard?.querySelector('.poster-canvas');
+    if (!oldCanvas) continue;
+
+    oldCanvas.remove();
+    oldestCard._thumbnailLoaded = false;
+
+    const wrapper = oldestCard.querySelector('.poster-thumb-wrapper');
+    if (wrapper && !wrapper.querySelector('.poster-placeholder')) {
+      const placeholder = createSvgIcon('M8 5v14l11-7Z');
+      placeholder.classList.add('poster-placeholder');
+      wrapper.appendChild(placeholder);
+    }
+
+    // Thumbnails are regenerated only when the card comes back near the viewport.
+    if (oldestCard.isConnected) observeCard(oldestCard);
+  }
 }
 
 function observeCard(card) {
@@ -858,12 +895,14 @@ function buildFlatPlaylist() {
     group.videos = sortedVideos;
 
     for (const item of sortedVideos) {
-      flatPlaylist.push({
-        ...item,
-        folderName: group.folderName,
-      });
+      // Reuse library entries instead of allocating a second object per video.
+      item.folderName = group.folderName;
+      flatPlaylist.push(item);
     }
   }
+
+  flatPlaylistIndexByFile = new Map();
+  flatPlaylist.forEach((item, index) => flatPlaylistIndexByFile.set(item.file, index));
 }
 
 /* =========================================================
@@ -886,122 +925,113 @@ function renderEmptyExplorer(message) {
   foldersContainer.appendChild(empty);
 }
 
+function createVideoCard(item, group, index) {
+  const card = document.createElement('div');
+  card.className = 'video-poster-card';
+  card.dataset.order = String(index);
+  card._videoFile = item.file;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'poster-thumb-wrapper';
+
+  const badges = document.createElement('div');
+  badges.className = 'poster-badges';
+
+  if (item.subFiles?.length) {
+    const subBadge = document.createElement('span');
+    subBadge.className = 'badge-sub';
+    subBadge.textContent = 'CC';
+    badges.appendChild(subBadge);
+  } else {
+    badges.appendChild(document.createElement('span'));
+  }
+
+  const sizeBadge = document.createElement('span');
+  sizeBadge.className = 'badge-size';
+  sizeBadge.textContent = `${(item.file.size / (1024 * 1024)).toFixed(1)} MB`;
+  badges.appendChild(sizeBadge);
+
+  const placeholder = createSvgIcon('M8 5v14l11-7Z');
+  placeholder.classList.add('poster-placeholder');
+  thumb.append(badges, placeholder);
+
+  const meta = document.createElement('div');
+  meta.className = 'poster-meta';
+
+  const title = document.createElement('span');
+  title.className = 'poster-title';
+  title.textContent = item.name;
+  title.title = item.name;
+  meta.appendChild(title);
+
+  card.append(thumb, meta);
+  card.addEventListener('click', () => {
+    const globalIndex = flatPlaylistIndexByFile.get(item.file);
+    if (Number.isInteger(globalIndex)) playIndex(globalIndex, group.videos);
+  });
+
+  observeCard(card);
+  return card;
+}
+
 function createFolderElement(group, filteredVideos) {
   const groupEl = document.createElement('div');
-
   groupEl.className = 'folder-group';
 
   const headEl = document.createElement('div');
-
   headEl.className = 'folder-head';
 
   const titleWrap = document.createElement('div');
-
   titleWrap.className = 'folder-title-wrap';
-
   titleWrap.appendChild(createSvgIcon('M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z'));
 
   const folderTitle = document.createElement('strong');
-
   folderTitle.textContent = group.folderName;
-
   titleWrap.appendChild(folderTitle);
 
   const badge = document.createElement('span');
-
   badge.className = 'folder-count-badge';
-
   badge.textContent = `${filteredVideos.length} ویدیو`;
-
   headEl.append(titleWrap, badge);
 
   const gridEl = document.createElement('div');
-
   gridEl.className = 'videos-grid';
 
-  filteredVideos.forEach((item, index) => {
-    const card = document.createElement('div');
+  const moreWrap = document.createElement('div');
+  moreWrap.className = 'folder-load-more-wrap';
 
-    card.className = 'video-poster-card';
+  const moreButton = document.createElement('button');
+  moreButton.type = 'button';
+  moreButton.className = 'folder-load-more-btn';
 
-    card.dataset.order = String(index);
+  let renderedCount = 0;
+  const appendBatch = () => {
+    const nextEnd = Math.min(renderedCount + EXPLORER_BATCH_SIZE, filteredVideos.length);
+    const fragment = document.createDocumentFragment();
 
-    card._videoFile = item.file;
-
-    const thumb = document.createElement('div');
-
-    thumb.className = 'poster-thumb-wrapper';
-
-    const badges = document.createElement('div');
-
-    badges.className = 'poster-badges';
-
-    if (item.subFiles?.length) {
-      const subBadge = document.createElement('span');
-
-      subBadge.className = 'badge-sub';
-
-      subBadge.textContent = 'CC';
-
-      badges.appendChild(subBadge);
-    } else {
-      const emptyBadge = document.createElement('span');
-
-      badges.appendChild(emptyBadge);
+    for (let index = renderedCount; index < nextEnd; index += 1) {
+      fragment.appendChild(createVideoCard(filteredVideos[index], group, index));
     }
 
-    const sizeBadge = document.createElement('span');
+    gridEl.appendChild(fragment);
+    renderedCount = nextEnd;
 
-    sizeBadge.className = 'badge-size';
+    const remaining = filteredVideos.length - renderedCount;
+    moreButton.textContent = `نمایش ویدیوهای بیشتر · ${remaining.toLocaleString('fa-IR')} باقی‌مانده`;
+    moreWrap.classList.toggle('hidden', remaining <= 0);
+  };
 
-    const sizeMB = (item.file.size / (1024 * 1024)).toFixed(1);
+  moreButton.addEventListener('click', appendBatch);
+  moreWrap.appendChild(moreButton);
+  appendBatch();
 
-    sizeBadge.textContent = `${sizeMB} MB`;
-
-    badges.appendChild(sizeBadge);
-
-    const placeholder = createSvgIcon('M8 5v14l11-7Z');
-
-    placeholder.classList.add('poster-placeholder');
-
-    thumb.append(badges, placeholder);
-
-    const meta = document.createElement('div');
-
-    meta.className = 'poster-meta';
-
-    const title = document.createElement('span');
-
-    title.className = 'poster-title';
-
-    title.textContent = item.name;
-
-    title.title = item.name;
-
-    meta.appendChild(title);
-
-    card.append(thumb, meta);
-
-    card.addEventListener('click', () => {
-      const globalIndex = flatPlaylist.findIndex((entry) => entry.file === item.file);
-
-      if (globalIndex !== -1) {
-        playIndex(globalIndex, group.videos);
-      }
-    });
-
-    observeCard(card);
-
-    gridEl.appendChild(card);
-  });
-
-  groupEl.append(headEl, gridEl);
-
+  groupEl.append(headEl, gridEl, moreWrap);
   return groupEl;
 }
 
 function renderExplorer() {
   resetPosterQueue();
+  posterCache.clear();
 
   foldersContainer.innerHTML = '';
 
@@ -1136,11 +1166,11 @@ function playIndex(index, folderVideosList = null) {
   }
 
   if (folderVideosList) {
-    currentFolderVideos = [...folderVideosList].sort((a, b) => naturalCompare(a.name, b.name));
+    // Folder playlists are already naturally sorted during library indexing.
+    currentFolderVideos = folderVideosList;
   } else {
     const parentFolder = library.find((group) => group.folderName === item.folderName);
-
-    currentFolderVideos = parentFolder ? [...parentFolder.videos].sort((a, b) => naturalCompare(a.name, b.name)) : [item];
+    currentFolderVideos = parentFolder?.videos || [item];
   }
 
   closeSubtitleMenu();
@@ -1307,44 +1337,54 @@ function playPrevVideo() {
 
 function renderLiveDrawer() {
   const currentItem = flatPlaylist[currentPlaylistIndex];
+  const playlist = currentFolderVideos;
 
   drawerFolderTitle.textContent = currentItem?.folderName || '';
+  drawerVideosList.replaceChildren();
 
-  drawerVideosList.innerHTML = '';
+  let renderedCount = 0;
+  const appendBatch = () => {
+    const nextEnd = Math.min(renderedCount + DRAWER_BATCH_SIZE, playlist.length);
+    const fragment = document.createDocumentFragment();
 
-  for (const vid of currentFolderVideos) {
-    const row = document.createElement('div');
+    for (let index = renderedCount; index < nextEnd; index += 1) {
+      const vid = playlist[index];
+      const row = document.createElement('div');
+      row.className = 'drawer-v-item';
 
-    row.className = 'drawer-v-item';
+      if (vid.file === currentItem?.file) row.classList.add('active');
 
-    if (vid.file === currentItem?.file) {
-      row.classList.add('active');
+      const icon = createSvgIcon('M8 5v14l11-7Z');
+      const name = document.createElement('span');
+      name.className = 'drawer-v-name';
+      name.title = vid.name;
+      name.textContent = vid.name;
+      row.append(icon, name);
+
+      row.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const globalIndex = flatPlaylistIndexByFile.get(vid.file);
+        if (Number.isInteger(globalIndex)) playIndex(globalIndex, playlist);
+      });
+
+      fragment.appendChild(row);
     }
 
-    const icon = createSvgIcon('M8 5v14l11-7Z');
+    drawerVideosList.insertBefore(fragment, moreButton);
+    renderedCount = nextEnd;
 
-    const name = document.createElement('span');
+    const remaining = playlist.length - renderedCount;
+    moreButton.textContent = `نمایش موارد بعدی · ${remaining.toLocaleString('fa-IR')} باقی‌مانده`;
+    moreButton.classList.toggle('hidden', remaining <= 0);
+  };
 
-    name.className = 'drawer-v-name';
+  const moreButton = document.createElement('button');
+  moreButton.type = 'button';
+  moreButton.className = 'drawer-load-more-btn';
+  moreButton.addEventListener('click', appendBatch);
+  drawerVideosList.appendChild(moreButton);
 
-    name.title = vid.name;
-
-    name.textContent = vid.name;
-
-    row.append(icon, name);
-
-    row.addEventListener('click', (event) => {
-      event.stopPropagation();
-
-      const index = flatPlaylist.findIndex((entry) => entry.file === vid.file);
-
-      if (index !== -1) {
-        playIndex(index, currentFolderVideos);
-      }
-    });
-
-    drawerVideosList.appendChild(row);
-  }
+  appendBatch();
 }
 
 /* =========================================================
