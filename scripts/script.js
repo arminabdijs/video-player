@@ -644,8 +644,10 @@ async function traverseEntry(entry, parentFolder = '', output = []) {
 
     const children = await readDirectoryEntries(reader);
 
-    // Directory entries can be read concurrently; final library sorting keeps order deterministic.
-    await Promise.all(children.map((child) => traverseEntry(child, folderPath, output)));
+    // Walk directories in a predictable order to avoid opening too many local files at once.
+    for (const child of children) {
+      await traverseEntry(child, folderPath, output);
+    }
   }
 
   return output;
