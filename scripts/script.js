@@ -129,6 +129,8 @@ let nativeTextTrackListenerAttached = false;
 let embeddedSubtitleNotice = '';
 
 let activeObjectURL = null;
+let pendingMatroskaFile = null;
+let matroskaScanStarted = false;
 
 let activeFilter = 'all';
 
@@ -343,6 +345,11 @@ async function processPosterQueue() {
   posterWorkerRunning = true;
 
   while (posterQueue.length) {
+    // Poster decoding is secondary work: never compete with active playback.
+    if (playerWorkspace?.classList.contains('active')) {
+      break;
+    }
+
     const card = posterQueue.shift();
 
     if (!card || !card.isConnected || !card._videoFile || card._thumbnailLoaded) {
@@ -621,9 +628,8 @@ async function traverseEntry(entry, parentFolder = '', output = []) {
 
     const children = await readDirectoryEntries(reader);
 
-    for (const child of children) {
-      await traverseEntry(child, folderPath, output);
-    }
+    // Directory entries can be read concurrently; final library sorting keeps order deterministic.
+    await Promise.all(children.map((child) => traverseEntry(child, folderPath, output)));
   }
 
   return output;
@@ -722,9 +728,36 @@ function processScannedFiles(fileList) {
   });
 
   const foldersMap = new Map();
+  const subtitlesByFolder = new Map();
 
   /* -------------------------------------------------------
-     Match subtitles
+     Index subtitles once instead of comparing every video
+     with every subtitle (quadratic work on large folders).
+  ------------------------------------------------------- */
+
+  for (const subtitle of subtitleFiles) {
+    let index = subtitlesByFolder.get(subtitle.folder);
+
+    if (!index) {
+      index = { byName: new Map(), byPrefix: new Map() };
+      subtitlesByFolder.set(subtitle.folder, index);
+    }
+
+    const exactMatches = index.byName.get(subtitle.cleanName) || [];
+    exactMatches.push(subtitle);
+    index.byName.set(subtitle.cleanName, exactMatches);
+
+    const words = subtitle.cleanName.split(' ').filter(Boolean);
+    for (let wordCount = 1; wordCount < words.length; wordCount += 1) {
+      const prefix = words.slice(0, wordCount).join(' ');
+      const prefixMatches = index.byPrefix.get(prefix) || [];
+      prefixMatches.push(subtitle);
+      index.byPrefix.set(prefix, prefixMatches);
+    }
+  }
+
+  /* -------------------------------------------------------
+     Match subtitles using exact and word-boundary indexes.
   ------------------------------------------------------- */
 
   for (const videoItem of videoFiles) {
@@ -732,13 +765,32 @@ function processScannedFiles(fileList) {
       foldersMap.set(videoItem.folder, []);
     }
 
-    const matchedSubs = subtitleFiles
-      .map((sub) => ({
-        sub,
-        score: subtitleMatchScore(videoItem, sub),
-      }))
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score || naturalCompare(a.sub.name, b.sub.name));
+    const index = subtitlesByFolder.get(videoItem.folder);
+    const matches = new Map();
+
+    if (index) {
+      const addMatches = (items, score) => {
+        for (const subtitle of items || []) {
+          const previous = matches.get(subtitle);
+          if (!previous || score > previous.score) {
+            matches.set(subtitle, { sub: subtitle, score });
+          }
+        }
+      };
+
+      addMatches(index.byName.get(videoItem.cleanName), 100);
+      addMatches(index.byPrefix.get(videoItem.cleanName), 60);
+
+      const words = videoItem.cleanName.split(' ').filter(Boolean);
+      for (let wordCount = 1; wordCount < words.length; wordCount += 1) {
+        const shorterName = words.slice(0, wordCount).join(' ');
+        addMatches(index.byName.get(shorterName), 60);
+      }
+    }
+
+    const matchedSubs = [...matches.values()].sort(
+      (a, b) => b.score - a.score || naturalCompare(a.sub.name, b.sub.name),
+    );
 
     foldersMap.get(videoItem.folder).push({
       file: videoItem.file,
@@ -1112,6 +1164,7 @@ function playIndex(index, folderVideosList = null) {
   renderLiveDrawer();
 
   resetSubtitlesForVideo();
+  pendingMatroskaFile = /\.mkv$/i.test(item.file.name || '') ? item.file : null;
 
   /*
    * Start immediately from the
@@ -1122,11 +1175,6 @@ function playIndex(index, folderVideosList = null) {
   if (item.subFiles?.length) {
     loadSubtitle(item.subFiles[0]);
   }
-
-  // Read text subtitle tracks embedded in MKV without changing the player UI.
-  // External SRT/VTT keeps its current priority; embedded tracks remain selectable.
-  const subtitleScanGeneration = embeddedSubtitleScanGeneration;
-  startMatroskaSubtitleScan(item.file, subtitleScanGeneration);
 
   updateProgress();
 
@@ -1306,6 +1354,7 @@ function returnToExplorer(pauseVideo = true) {
   resetSubtitlesForVideo();
 
   setPlayerView(false);
+  processPosterQueue();
 }
 
 /* =========================================================
@@ -1331,6 +1380,8 @@ function resetSubtitlesForVideo() {
   embeddedSubtitleScanGeneration += 1;
   embeddedSubtitleScanController?.abort();
   embeddedSubtitleScanController = null;
+  pendingMatroskaFile = null;
+  matroskaScanStarted = false;
   disableNativeSubtitleTracks();
 
   subtitles = [];
@@ -1610,8 +1661,10 @@ function discoverNativeSubtitleTracks(generation = embeddedSubtitleScanGeneratio
 
 function startMatroskaSubtitleScan(file, generation) {
   if (!/\.mkv$/i.test(file?.name || '') || !window.AuraMatroskaSubtitleReader?.read) return;
-  if (generation !== embeddedSubtitleScanGeneration) return;
+  if (generation !== embeddedSubtitleScanGeneration || matroskaScanStarted) return;
 
+  matroskaScanStarted = true;
+  pendingMatroskaFile = null;
   const controller = new AbortController();
   embeddedSubtitleScanController = controller;
   embeddedSubtitleNotice = 'در حال بررسی ترک‌های زیرنویس داخل فایل…';
@@ -2117,6 +2170,11 @@ function openSubtitleMenu() {
   subBtn.classList.add('active');
 
   clearControlsTimer();
+
+  // Embedded MKV subtitles are parsed only when the user opens subtitle settings.
+  if (pendingMatroskaFile && !matroskaScanStarted) {
+    startMatroskaSubtitleScan(pendingMatroskaFile, embeddedSubtitleScanGeneration);
+  }
 }
 
 function closeSubtitleMenu() {
@@ -2293,7 +2351,14 @@ function resetControlsTimer() {
 ========================================================= */
 
 function setLoading(active) {
-  videoLoader?.classList.toggle('active', active);
+  // All media sources in this player are local File/Blob URLs. Browser buffering
+  // events are normal for local seeking/decoding and should not show a network loader.
+  if (activeObjectURL && activeObjectURL.startsWith('blob:')) {
+    videoLoader?.classList.remove('active');
+    return;
+  }
+
+  videoLoader?.classList.toggle('active', Boolean(active));
 }
 
 /* =========================================================
