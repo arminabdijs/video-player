@@ -493,6 +493,7 @@ svg.pause-icon {
 }
 
 .video-poster-card {
+  contain: layout paint;
   display: flex;
   flex-direction: column;
 
