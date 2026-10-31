@@ -571,6 +571,7 @@ function rememberPoster(card) {
     const oldCanvas = oldestCard?.querySelector('.poster-canvas');
     if (!oldCanvas) continue;
 
+    posterQueued.delete(oldestCard);
     oldCanvas.remove();
     oldestCard._thumbnailLoaded = false;
 
