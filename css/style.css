@@ -463,6 +463,35 @@ svg.pause-icon {
   direction: ltr;
 }
 
+.folder-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 16px;
+}
+
+.folder-load-more-btn,
+.drawer-load-more-btn {
+  min-height: 38px;
+  padding: 0 16px;
+  color: var(--m3-on-primary-container);
+  background: var(--m3-primary-container);
+  border: 1px solid rgba(208, 188, 255, 0.18);
+  border-radius: var(--m3-radius-full);
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+
+.folder-load-more-btn:hover,
+.drawer-load-more-btn:hover {
+  background: #60469b;
+}
+
+.drawer-load-more-btn {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
 .video-poster-card {
   display: flex;
   flex-direction: column;
