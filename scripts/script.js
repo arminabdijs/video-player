@@ -300,6 +300,7 @@ const posterQueue = [];
 const posterQueued = new WeakSet();
 
 let posterWorkerRunning = false;
+let activePosterCleanup = null;
 let posterGenerationToken = 0;
 
 const thumbObserver =
@@ -357,6 +358,7 @@ async function processPosterQueue() {
     }
 
     card.dataset.posterState = 'loading';
+    const taskGeneration = posterGenerationToken;
 
     try {
       await loadPosterForCard(card, card._videoFile);
@@ -364,9 +366,12 @@ async function processPosterQueue() {
       // Keep placeholder if the browser cannot decode the file.
     }
 
-    if (card.isConnected) {
+    if (taskGeneration === posterGenerationToken && card.isConnected) {
       card.dataset.posterState = 'done';
       card._thumbnailLoaded = true;
+    } else {
+      posterQueued.delete(card);
+      if (card.isConnected) card.dataset.posterState = 'idle';
     }
 
     await new Promise((resolve) => {
@@ -379,7 +384,14 @@ async function processPosterQueue() {
 
 function resetPosterQueue() {
   posterGenerationToken += 1;
+
+  for (const card of posterQueue) {
+    posterQueued.delete(card);
+    if (card?.isConnected) card.dataset.posterState = 'idle';
+  }
+
   posterQueue.length = 0;
+  activePosterCleanup?.();
 }
 
 function loadPosterForCard(card, file) {
@@ -413,6 +425,9 @@ function loadPosterForCard(card, file) {
       finished = true;
 
       clearTimeout(timeoutId);
+
+      if (activePosterCleanup === cleanup) activePosterCleanup = null;
+      if (generation !== posterGenerationToken) posterQueued.delete(card);
 
       URL.revokeObjectURL(url);
 
@@ -496,6 +511,7 @@ function loadPosterForCard(card, file) {
       }
     }
 
+    activePosterCleanup = cleanup;
     timeoutId = window.setTimeout(cleanup, 5000);
 
     posterVideo.addEventListener(
@@ -1109,6 +1125,8 @@ function playIndex(index, folderVideosList = null) {
     return;
   }
 
+  // Stop thumbnail decoding immediately when the user starts a video.
+  resetPosterQueue();
   currentPlaylistIndex = index;
 
   if (randomPlayback) {
@@ -1354,6 +1372,9 @@ function returnToExplorer(pauseVideo = true) {
   resetSubtitlesForVideo();
 
   setPlayerView(false);
+
+  // Re-observe cards whose poster work was cancelled for playback.
+  foldersContainer?.querySelectorAll('.video-poster-card').forEach(observeCard);
   processPosterQueue();
 }
 
