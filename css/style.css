@@ -1009,7 +1009,7 @@ svg.pause-icon {
 
 .progress-fill {
   width: 0;
-  background: var(--m3-primary);
+  background: #ff0080;
 }
 
 .thumb-marker {
