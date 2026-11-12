@@ -8,7 +8,7 @@
 
     <title>Aura Material Video Player Pro</title>
     <link rel="shortcut icon" href="./assets/images/play_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.png" type="image/x-icon">
-    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/style.css?v=1.9.1" />
   </head>
 
   <body>
@@ -42,7 +42,7 @@
 
         <div class="top-bar-actions">
           <!-- Back to Explorer -->
-          <button class="m3-btn-filled-tonal hidden" id="topBackBtn" type="button">
+          <button class="m3-btn-filled-tonal hidden" id="topBackBtn" type="button" title="بازگشت به فهرست ویدیوها" aria-label="بازگشت به فهرست ویدیوها">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
             </svg>
@@ -52,7 +52,7 @@
 
           <!-- Explorer-only actions -->
           <div class="explorer-only-actions" id="explorerActions">
-            <button class="m3-btn-filled-tonal" id="openFolderBtn" type="button">
+            <button class="m3-btn-filled-tonal" id="openFolderBtn" type="button" title="انتخاب پوشه فیلم‌ها" aria-label="انتخاب پوشه فیلم‌ها">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z" />
               </svg>
@@ -140,11 +140,6 @@
             <!-- Subtitle Layer -->
             <div class="subtitle-layer hidden" id="subtitleLayer"></div>
 
-            <!-- Loading -->
-            <div class="video-loader" id="videoLoader" aria-hidden="true">
-              <div class="m3-circular-progress"></div>
-            </div>
-
             <!-- =====================================================
                  PLAYLIST DRAWER
             ====================================================== -->
@@ -164,6 +159,14 @@
                 </button>
               </div>
 
+              <div class="drawer-now-playing" id="drawerNowPlaying" hidden aria-live="polite" aria-atomic="true">
+                <span class="drawer-now-playing-indicator" aria-hidden="true"><i></i><i></i><i></i></span>
+                <div class="drawer-now-playing-copy">
+                  <span id="drawerPlaybackLabel">ویدیوی فعلی</span>
+                  <strong id="drawerPlaybackName"></strong>
+                </div>
+              </div>
+
               <div class="drawer-videos-list" id="drawerVideosList"></div>
             </div>
 
@@ -177,6 +180,11 @@
                 <button class="m3-icon-btn-trans toggle-drawer-btn" id="toggleDrawerBtn" type="button" title="لیست ویدیوهای پوشه" aria-label="لیست ویدیوهای پوشه">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
+                  </svg>
+                </button>
+                <button class="m3-icon-btn-trans quick-menu-open-btn" id="quickMenuBtn" type="button" title="کنترل‌های سریع" aria-label="باز کردن کنترل‌های سریع" aria-haspopup="menu" aria-expanded="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
                   </svg>
                 </button>
               </div>
@@ -314,79 +322,71 @@
                       <span>CC</span>
                     </button>
 
-                    <div class="subtitle-menu" id="subtitleMenu">
-                      <div class="menu-header">
+                    <div class="subtitle-menu" id="subtitleMenu" aria-label="تنظیمات زیرنویس">
+                      <div class="menu-header subtitle-panel-header">
                         <div>
-                          <span>تنظیمات پخش</span>
-
-                          <strong>زیرنویس</strong>
+                          <span>PERSONALIZE PLAYBACK</span>
+                          <strong>تنظیمات زیرنویس</strong>
                         </div>
-
                         <button id="closeSubtitle" type="button" aria-label="بستن تنظیمات زیرنویس">×</button>
                       </div>
 
-                      <button class="subtitle-upload" id="subtitleUploadBtn" type="button">انتخاب فایل زیرنویس</button>
+                      <section class="subtitle-source-group" aria-label="منبع زیرنویس">
+                        <div class="subtitle-section-heading">منبع زیرنویس</div>
+                        <button class="subtitle-upload" id="subtitleUploadBtn" type="button">
+                          <span class="subtitle-upload-mark" aria-hidden="true">＋</span>
+                          <span>انتخاب فایل زیرنویس</span>
+                          <span class="subtitle-upload-format">SRT · ASS · VTT</span>
+                        </button>
 
-                      <div class="subtitle-option embedded-subtitle-section hidden" id="embeddedSubtitleSection">
-                        <div class="option-label">
-                          <span>زیرنویس‌های داخل ویدئو</span>
-                          <small id="embeddedSubtitleCount"></small>
-                        </div>
-                        <div class="embedded-subtitle-tracks" id="embeddedSubtitleTracks"></div>
-                        <span class="embedded-subtitle-message" id="embeddedSubtitleMessage"></span>
-                      </div>
-
-                      <div class="subtitle-file" id="subtitleFile">
-                        <div class="subtitle-file-icon">CC</div>
-
-                        <div class="subtitle-file-info">
-                          <strong id="subtitleFileName">زیرنویسی انتخاب نشده</strong>
-
-                          <span id="subtitleStatus">زیرنویس خاموش است</span>
+                        <div class="subtitle-option embedded-subtitle-section hidden" id="embeddedSubtitleSection">
+                          <div class="option-label">
+                            <span>زیرنویس‌های داخل ویدئو</span>
+                            <small id="embeddedSubtitleCount"></small>
+                          </div>
+                          <div class="embedded-subtitle-tracks" id="embeddedSubtitleTracks"></div>
+                          <span class="embedded-subtitle-message" id="embeddedSubtitleMessage"></span>
                         </div>
 
-                        <button id="removeSubtitle" type="button" aria-label="حذف زیرنویس">×</button>
-                      </div>
-
-                      <div class="subtitle-option">
-                        <div class="option-label">
-                          <span>نمایش زیرنویس</span>
-
-                          <button class="switch" id="subtitleToggle" type="button" aria-pressed="false" aria-label="نمایش زیرنویس">
-                            <span></span>
-                          </button>
+                        <div class="subtitle-file" id="subtitleFile">
+                          <div class="subtitle-file-icon" aria-hidden="true">CC</div>
+                          <div class="subtitle-file-info">
+                            <strong id="subtitleFileName">زیرنویسی انتخاب نشده</strong>
+                            <span id="subtitleStatus">زیرنویس خاموش است</span>
+                          </div>
+                          <button id="removeSubtitle" type="button" aria-label="حذف زیرنویس">×</button>
                         </div>
-                      </div>
+                      </section>
 
-                      <div class="subtitle-option">
-                        <div class="option-label">
-                          <span>پس‌زمینه زیرنویس</span>
-
-                          <button class="switch active" id="subBgToggleBtn" type="button" aria-pressed="true" aria-label="پس‌زمینه زیرنویس">
-                            <span></span>
-                          </button>
+                      <section class="subtitle-settings-group" aria-label="وضعیت نمایش زیرنویس">
+                        <div class="subtitle-section-heading">نمایش</div>
+                        <div class="subtitle-option subtitle-switch-row">
+                          <div class="option-label">
+                            <span>نمایش زیرنویس</span>
+                            <button class="switch" id="subtitleToggle" type="button" aria-pressed="false" aria-label="نمایش زیرنویس"><span></span></button>
+                          </div>
                         </div>
-                      </div>
-
-                      <div class="subtitle-option">
-                        <div class="option-label">
-                          <span>اندازه</span>
-
-                          <strong id="subtitleSizeValue">100%</strong>
+                        <div class="subtitle-option subtitle-switch-row">
+                          <div class="option-label">
+                            <span>پس‌زمینه زیرنویس</span>
+                            <button class="switch active" id="subBgToggleBtn" type="button" aria-pressed="true" aria-label="پس‌زمینه زیرنویس"><span></span></button>
+                          </div>
                         </div>
+                      </section>
 
-                        <input class="setting-range" id="subtitleSize" type="range" min="70" max="180" step="5" value="100" aria-label="اندازه زیرنویس" />
-                      </div>
-
-                      <div class="subtitle-option">
-                        <div class="option-label">
-                          <span>فاصله از پایین</span>
-
-                          <strong id="subtitlePositionValue">8%</strong>
+                      <section class="subtitle-settings-group subtitle-appearance-group" aria-label="ظاهر و جایگاه زیرنویس">
+                        <div class="subtitle-section-heading">ظاهر و جایگاه</div>
+                        <div class="subtitle-option subtitle-range-row">
+                          <div class="option-label"><span>اندازه متن</span><strong id="subtitleSizeValue">100%</strong></div>
+                          <input class="setting-range" id="subtitleSize" type="range" min="70" max="180" step="5" value="100" aria-label="اندازه زیرنویس" />
+                          <div class="subtitle-range-hints"><span>کوچک</span><span>بزرگ</span></div>
                         </div>
-
-                        <input class="setting-range" id="subtitlePosition" type="range" min="3" max="25" step="1" value="8" aria-label="فاصله زیرنویس از پایین" />
-                      </div>
+                        <div class="subtitle-option subtitle-range-row">
+                          <div class="option-label"><span>فاصله از پایین</span><strong id="subtitlePositionValue">8%</strong></div>
+                          <input class="setting-range" id="subtitlePosition" type="range" min="3" max="25" step="1" value="8" aria-label="فاصله زیرنویس از پایین" />
+                          <div class="subtitle-range-hints"><span>پایین‌تر</span><span>بالاتر</span></div>
+                        </div>
+                      </section>
                     </div>
                   </div>
 
@@ -437,8 +437,19 @@
                     </div>
                   </div>
 
+                  <!-- Picture fit mode -->
+                  <button class="aspect-mode-button" id="aspectBtn" type="button"
+                    title="تغییر حالت نمایش تصویر (A) · حالت فعلی: نمایش کامل"
+                    aria-label="تغییر حالت نمایش تصویر؛ حالت فعلی: نمایش کامل"
+                    aria-keyshortcuts="A">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Zm2 .5v12h12V6H6Zm2 2h8v8H8V8Z" />
+                    </svg>
+                    <span id="aspectModeLabel">کامل</span>
+                  </button>
+
                   <!-- PiP -->
-                  <button class="control-icon-btn" id="pipBtn" type="button" title="تصویر در تصویر" aria-label="تصویر در تصویر">
+                  <button class="control-icon-btn" id="pipBtn" type="button" title="تصویر در تصویر (I)" aria-label="تصویر در تصویر">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z" />
                     </svg>

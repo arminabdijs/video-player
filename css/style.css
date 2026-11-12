@@ -664,6 +664,7 @@ svg.pause-icon {
   aspect-ratio: 16 / 9;
 
   overflow: hidden;
+  contain: layout paint;
 
   background: #000;
   border: 1px solid var(--m3-outline-variant);
@@ -712,8 +713,6 @@ svg.pause-icon {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
 
-  backdrop-filter: blur(10px);
-
   direction: rtl;
 
   font-size: clamp(14px, 2.1vw, 28px);
@@ -723,43 +722,6 @@ svg.pause-icon {
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.95);
 
   white-space: pre-wrap;
-}
-
-/* =========================================================
-   LOADER
-========================================================= */
-
-.video-loader {
-  position: absolute;
-  inset: 0;
-
-  z-index: 15;
-
-  display: none;
-  place-items: center;
-
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.video-loader.active {
-  display: grid;
-}
-
-.m3-circular-progress {
-  width: 44px;
-  height: 44px;
-
-  border: 4px solid rgba(208, 188, 255, 0.2);
-  border-top-color: var(--m3-primary);
-  border-radius: 50%;
-
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* =========================================================
@@ -1264,8 +1226,6 @@ svg.pause-icon {
   border-radius: 16px;
 
   box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85);
-
-  backdrop-filter: blur(20px);
 
   direction: rtl;
   text-align: right;
@@ -1849,8 +1809,6 @@ svg.pause-icon {
   background: var(--m3-surface-container-high);
   border-left: 1px solid var(--m3-outline-variant);
 
-  backdrop-filter: blur(20px);
-
   transform: translateX(100%);
 
   transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1);
@@ -1972,8 +1930,6 @@ svg.pause-icon {
   border-radius: 14px;
 
   box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65);
-
-  backdrop-filter: blur(18px);
 
   direction: rtl;
   text-align: center;
@@ -2128,6 +2084,9 @@ svg.pause-icon {
     display: none;
   }
 
+  .aspect-mode-button { min-width: 58px; height: 32px; padding-inline: 8px; gap: 4px; font-size: 10px; }
+  .aspect-mode-button svg { width: 15px; height: 15px; }
+
   .subtitle-menu,
   .speed-menu {
     position: fixed;
@@ -2178,5 +2137,5188 @@ svg.pause-icon {
   .m3-chip {
     padding-inline: 11px;
     font-size: 0.7rem;
+  }
+}
+
+
+/* =========================================================
+   ADVANCED DESKTOP-STYLE PLAYER CONTROLS
+========================================================= */
+
+.player-osd {
+  position: absolute;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 7px;
+  min-width: 150px;
+  max-width: min(280px, calc(100% - 32px));
+  padding: 13px 17px 12px;
+  color: #fff;
+  text-align: center;
+  background: rgba(18, 18, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 15px;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.player-osd.hidden {
+  opacity: 0;
+  transform: translate(-50%, -46%);
+}
+
+.player-osd-title {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.player-osd-value {
+  font-size: 21px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-osd-meter {
+  height: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+
+.player-osd-meter[hidden] { display: none; }
+.player-osd-meter i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--m3-primary, #d0bcff);
+  border-radius: inherit;
+  transition: width 0.12s ease;
+}
+
+.timeline-slider { position: relative; touch-action: none; }
+.timeline-slider.is-scrubbing .timeline-track { height: 7px; }
+.timeline-slider.is-scrubbing .thumb-marker { transform: translate(-50%, -50%) scale(1); }
+.seek-tooltip {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(100% + 8px);
+  left: 0;
+  padding: 5px 8px;
+  color: #fff;
+  background: rgba(18, 18, 22, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(3px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.seek-tooltip.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.aspect-mode-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 66px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  direction: rtl;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.aspect-mode-button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+.aspect-mode-button:hover,
+.aspect-mode-button:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.28);
+  outline: none;
+}
+.aspect-mode-button:active { transform: scale(0.96); }
+.aspect-mode-button.is-active {
+  color: #e8ddff;
+  background: rgba(169, 132, 245, 0.2);
+  border-color: rgba(199, 170, 255, 0.42);
+}
+
+.player-context-menu {
+  position: fixed;
+  z-index: 10020;
+  display: none;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(84dvh, 560px);
+  padding: 13px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  color: #f6f3fa;
+  background: #211f26;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.48), 0 3px 12px rgba(0, 0, 0, 0.18);
+  direction: rtl;
+  scrollbar-gutter: stable;
+}
+.player-context-menu.open { display: block; animation: player-context-enter 130ms ease-out both; }
+.m3-player-card:fullscreen .player-context-menu,
+.m3-player-card:-webkit-full-screen .player-context-menu { position: absolute; }
+@keyframes player-context-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.player-context-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 2px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+.player-context-heading { display: grid; gap: 3px; min-width: 0; }
+.player-context-eyebrow,
+.player-help-eyebrow {
+  color: #c1a7f4;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  direction: ltr;
+  text-align: right;
+}
+.player-context-heading strong { color: #fbf9ff; font-size: 15px; font-weight: 780; letter-spacing: -.02em; }
+.player-context-heading small { color: rgba(245, 242, 248, .54); font-size: 9px; line-height: 1.6; }
+.player-context-statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 4px; }
+.player-context-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 21px;
+  padding: 3px 7px;
+  color: rgba(245, 242, 248, .7);
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .065);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 650;
+}
+.player-context-status i { width: 6px; height: 6px; border-radius: 50%; background: #92909b; }
+.player-context-status[data-state="playing"] i { background: #74d6a1; }
+.player-context-speed-status { color: #d9c9fa; background: rgba(169, 132, 245, .08); border-color: rgba(169, 132, 245, .12); }
+.player-context-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, .78);
+  background: rgba(255, 255, 255, .065);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+.player-context-close:hover { background: rgba(255, 255, 255, .13); border-color: rgba(255, 255, 255, .18); }
+.player-context-close:focus-visible,
+.player-context-item:focus-visible,
+.player-context-help-button:focus-visible { outline: 2px solid #c1a7f4; outline-offset: 2px; }
+.player-context-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding-top: 10px; }
+.player-context-section {
+  min-width: 0;
+  padding: 8px;
+  background: rgba(255, 255, 255, .027);
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 12px;
+}
+.player-context-section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.player-context-section-title { margin: 0; color: #cbb9ed; font-size: 9px; font-weight: 780; }
+.player-context-items { display: grid; gap: 4px; }
+.player-context-items[data-layout="grid"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.player-context-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 6px 8px;
+  color: inherit;
+  text-align: right;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  transition: background .12s ease, border-color .12s ease, transform .12s ease;
+}
+.player-context-item[data-action="toggle-play"] { grid-column: 1 / -1; }
+.player-context-item:hover { background: rgba(255, 255, 255, .085); border-color: rgba(255, 255, 255, .07); }
+.player-context-item:active { background: rgba(193, 167, 244, .12); transform: scale(.985); }
+.player-context-item[aria-pressed="true"] { background: rgba(169, 132, 245, .09); border-color: rgba(193, 167, 244, .18); }
+.player-context-icon {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  padding: 5px;
+  fill: #d9c9f8;
+  background: rgba(255, 255, 255, .065);
+  border: 1px solid rgba(255, 255, 255, .055);
+  border-radius: 8px;
+}
+.player-context-label { flex: 1 1 auto; min-width: 0; line-height: 1.5; }
+.player-context-item kbd,
+.player-context-navigation-hint kbd,
+.player-help-row kbd,
+.player-context-help-button kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  max-width: 88px;
+  min-height: 21px;
+  flex: 0 0 auto;
+  padding: 3px 5px;
+  color: rgba(255, 255, 255, .76);
+  background: rgba(255, 255, 255, .065);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 6px;
+  direction: ltr;
+  text-align: center;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.player-context-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 2px 1px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.player-context-help-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 9px;
+  color: #e8dcff;
+  background: rgba(169, 132, 245, .12);
+  border: 1px solid rgba(193, 167, 244, .2);
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.player-context-help-button:hover { background: rgba(169, 132, 245, .2); }
+.player-context-help-button { min-height: 40px; padding-inline: 12px; }
+.player-context-help-icon { width: 17px; height: 17px; fill: currentColor; }
+.player-context-navigation-hint { display: inline-flex; align-items: center; gap: 4px; color: rgba(245, 242, 248, .4); font-size: 8px; white-space: nowrap; }
+.player-context-navigation-hint kbd { min-width: 17px; min-height: 17px; padding: 2px 4px; font-size: 7px; border-radius: 5px; }
+.player-context-navigation-hint b { color: rgba(255, 255, 255, .22); font-weight: 500; }
+
+.player-keyboard-help {
+  position: fixed;
+  z-index: 10030;
+  top: 50%;
+  left: 50%;
+  display: none;
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(88dvh, 760px);
+  padding: 18px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: #f5f2f8;
+  background: #211f26;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.48);
+  transform: translate(-50%, -50%);
+}
+.player-keyboard-help.open { display: block; }
+.m3-player-card:fullscreen .player-keyboard-help,
+.m3-player-card:-webkit-full-screen .player-keyboard-help { position: absolute; }
+.player-help-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.player-help-title-wrap { display: grid; gap: 4px; }
+.player-help-header strong { font-size: 16px; }
+.player-help-header p { margin: 0; color: rgba(245, 242, 248, 0.58); font-size: 10px; line-height: 1.7; }
+.player-help-header button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  color: inherit;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.player-help-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  margin: 0 0 13px;
+  padding: 0 11px;
+  color: rgba(245, 242, 248, .55);
+  background: rgba(255, 255, 255, .045);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 10px;
+}
+.player-help-search svg { width: 17px; height: 17px; flex: 0 0 auto; fill: currentColor; }
+.player-help-search input {
+  width: 100%;
+  min-width: 0;
+  color: #f5f2f8;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 11px;
+}
+.player-help-search input::placeholder { color: rgba(245, 242, 248, .38); }
+.player-help-empty { margin: 12px 0 2px; color: rgba(245, 242, 248, .55); text-align: center; font-size: 11px; }
+.player-help-row[hidden],
+.player-help-group[hidden] { display: none !important; }
+
+.player-help-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.player-help-group {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 12px;
+}
+.player-help-group h3 { margin: 0 0 9px; color: #d5c4f4; font-size: 11px; font-weight: 750; }
+.player-help-grid { display: grid; gap: 7px; }
+.player-help-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 25px; font-size: 10px; }
+.player-help-row > span { min-width: 0; color: rgba(255, 255, 255, 0.82); line-height: 1.6; }
+.player-help-row kbd { min-width: 62px; flex: 0 0 auto; font-size: 8px; }
+
+@media (max-width: 600px) {
+  .player-osd { min-width: 132px; padding: 10px 13px; }
+  .player-context-menu { width: min(372px, calc(100% - 16px)); max-height: min(90%, 560px); padding: 10px; border-radius: 16px; }
+  .player-context-sections { grid-template-columns: 1fr; gap: 7px; }
+  .player-context-item { min-height: 36px; }
+  .player-context-footer { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .player-context-navigation-hint { white-space: normal; }
+  .player-keyboard-help { padding: 13px; width: calc(100% - 20px); max-height: 88%; }
+  .player-help-sections { grid-template-columns: 1fr; gap: 9px; }
+  .player-help-group { padding: 10px; }
+  .player-help-row { font-size: 9px; }
+}
+
+@media (max-width: 560px) {
+  .aspect-mode-button { min-width: 58px; height: 32px; padding-inline: 8px; gap: 4px; font-size: 10px; }
+  .aspect-mode-button svg { width: 15px; height: 15px; }
+}
+
+
+@media (max-height: 560px) and (min-width: 601px) {
+  .player-context-menu { max-height: 92%; padding: 9px; }
+  .player-context-header { padding-bottom: 7px; }
+  .player-context-statusbar { margin-top: 2px; }
+  .player-context-sections { padding-top: 7px; gap: 6px; }
+  .player-context-section { padding: 7px; }
+  .player-context-section-header { margin-bottom: 5px; }
+  .player-context-items { gap: 3px; }
+  .player-context-item { min-height: 31px; padding-block: 3px; }
+  .player-context-icon { width: 23px; height: 23px; padding: 5px; }
+  .player-context-footer { margin-top: 6px; padding-top: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-context-menu.open { animation: none; }
+  .player-context-item,
+  .player-context-close { transition: none; }
+}
+
+
+/* =========================================================
+   AURA GLASS SURFACES
+   Shared treatment for every in-app popup / floating panel.
+   Blur is intentionally modest and is reduced during fast playback.
+========================================================= */
+:root {
+  --aura-glass-bg: rgba(29, 26, 36, .87);
+  --aura-glass-border: rgba(255, 255, 255, .19);
+  --aura-glass-highlight: rgba(255, 255, 255, .08);
+  --aura-glass-blur: 11px;
+  --aura-glass-saturate: 145%;
+  --aura-glass-shadow: 0 18px 52px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .09);
+}
+
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  background: var(--aura-glass-bg) !important;
+  border-color: var(--aura-glass-border) !important;
+  box-shadow: var(--aura-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate));
+  backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate));
+  isolation: isolate;
+}
+
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  outline: 1px solid rgba(255, 255, 255, .025);
+  outline-offset: -2px;
+}
+
+.player-drawer-overlay {
+  border-left-color: var(--aura-glass-border) !important;
+}
+
+.player-context-section,
+.player-help-group,
+.speed-input-wrap,
+.player-help-search,
+.drawer-v-item,
+.player-context-item {
+  background-color: rgba(255, 255, 255, .045);
+}
+
+/* At high playback rates, retain the translucent glass appearance while
+   lowering the blur radius and disabling decorative panel animations. */
+.m3-player-card.is-fast-playback {
+  --aura-glass-blur: 6px;
+  --aura-glass-bg: rgba(25, 23, 31, .89);
+}
+
+.m3-player-card.is-extreme-playback {
+  --aura-glass-blur: 3px;
+  --aura-glass-bg: rgba(24, 22, 30, .91);
+}
+
+.m3-player-card.is-fast-playback .player-context-menu.open,
+.m3-player-card.is-fast-playback .speed-menu.open,
+.m3-player-card.is-fast-playback .subtitle-menu.open {
+  animation: none;
+  transition-duration: .08s;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subtitle-menu,
+  .speed-menu,
+  .player-context-menu,
+  .player-keyboard-help,
+  .player-drawer-overlay,
+  .player-osd,
+  .player-status,
+  .seek-tooltip {
+    background: rgba(27, 25, 33, .96) !important;
+  }
+}
+
+
+/* Do not sample the video backdrop for invisible/off-canvas surfaces. */
+.player-osd.hidden,
+.seek-tooltip:not(.visible),
+.player-drawer-overlay:not(.open) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.player-status.error {
+  border-color: rgba(255, 120, 120, .48) !important;
+}
+
+
+/* =========================================================
+   AURA 1.7 — RESPONSIVE SYSTEM
+   Fluid layout rules for desktop, tablet, portrait/landscape phones,
+   short viewports, safe areas and coarse pointer devices.
+========================================================= */
+:root {
+  --aura-page-gutter: clamp(8px, 2vw, 24px);
+  --aura-control-size: 40px;
+  --aura-panel-radius: 18px;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100svh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+.m3-shell {
+  width: min(1480px, 100%);
+  max-width: 100%;
+  padding: var(--aura-page-gutter);
+}
+
+.m3-main-content,
+.explorer-section,
+.player-workspace,
+.folders-accordion,
+.folder-group,
+.folder-head,
+.player-workspace.active {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.m3-main-content {
+  margin-top: clamp(10px, 1.6vw, 20px);
+}
+
+.m3-top-bar {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: clamp(9px, 1.2vw, 14px) clamp(10px, 1.5vw, 18px);
+}
+
+.top-bar-leading,
+.top-bar-actions,
+.explorer-only-actions {
+  min-width: 0;
+}
+
+.top-bar-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.search-field {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.search-field input {
+  min-width: 0;
+}
+
+.explorer-filter-bar {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.m3-chips-group {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.m3-chips-group::-webkit-scrollbar { display: none; }
+
+.video-counter { white-space: nowrap; }
+
+.videos-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 205px), 1fr));
+  min-width: 0;
+}
+
+.video-poster-card,
+.poster-meta,
+.poster-title {
+  min-width: 0;
+}
+
+.m3-player-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-y;
+}
+
+.stage-controls {
+  padding-inline: clamp(8px, 1.5vw, 18px);
+}
+
+.controls-main-row,
+.controls-cluster {
+  min-width: 0;
+}
+
+.control-icon-btn,
+.m3-icon-btn-trans,
+.subtitle-button,
+.m3-icon-btn,
+.aspect-mode-button {
+  flex: 0 0 auto;
+}
+
+/* Floating menus live at the viewport layer on normal screens. */
+.subtitle-menu,
+.speed-menu {
+  position: fixed;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 10010;
+  width: min(280px, calc(100vw - 24px));
+  min-width: min(240px, calc(100vw - 24px));
+  max-width: calc(100vw - 16px);
+  max-height: min(82dvh, 560px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.m3-player-card:fullscreen .subtitle-menu,
+.m3-player-card:fullscreen .speed-menu,
+.m3-player-card:-webkit-full-screen .subtitle-menu,
+.m3-player-card:-webkit-full-screen .speed-menu {
+  position: absolute;
+}
+
+.player-context-menu {
+  width: min(420px, calc(100vw - 24px));
+  max-width: calc(100vw - 16px);
+  max-height: min(84dvh, 560px);
+  border-radius: 20px;
+}
+
+.player-context-header {
+  align-items: center;
+  gap: 10px;
+  padding: 2px 1px 11px;
+}
+
+.player-context-heading strong { font-size: clamp(14px, 1.2vw, 16px); }
+.player-context-heading small { font-size: 10px; }
+.player-context-status { min-height: 23px; font-size: 9px; }
+.player-context-close { width: 36px; height: 36px; }
+.player-context-section { padding: 9px; border-radius: 13px; }
+.player-context-section-title { font-size: 10px; }
+.player-context-items { gap: 5px; }
+.player-context-item { min-height: 42px; border-radius: 11px; }
+.player-context-icon { width: 27px; height: 27px; border-radius: 9px; }
+.player-context-label { overflow-wrap: anywhere; }
+.player-context-footer { align-items: center; }
+.player-context-navigation-hint { font-size: 9px; }
+
+.player-keyboard-help {
+  width: min(760px, calc(100vw - 32px));
+  max-width: calc(100vw - 20px);
+  max-height: min(88dvh, 760px);
+  padding: clamp(12px, 2vw, 20px);
+  border-radius: 20px;
+}
+
+.player-help-sections {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.player-help-group,
+.player-help-row,
+.player-help-row > span {
+  min-width: 0;
+}
+
+.player-help-row kbd {
+  max-width: 48%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.player-drawer-overlay {
+  width: min(360px, 88vw);
+  max-width: 100%;
+}
+
+/* Compact laptops and landscape tablets. */
+@media (max-width: 1024px) {
+  .m3-shell { padding: 12px; }
+  .videos-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 185px), 1fr)); }
+  .stage-controls { padding-block: 10px 8px; }
+  .controls-main-row { gap: 7px; }
+  .controls-cluster { gap: 3px; }
+  .m3-range { width: 62px; }
+}
+
+/* Tablets and phones: header becomes two rows; the player gets useful height. */
+@media (max-width: 760px) {
+  :root { --aura-page-gutter: 10px; }
+
+  .m3-top-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .top-bar-leading { gap: 9px; }
+  .brand-badge { width: 38px; height: 38px; }
+  .top-bar-actions { gap: 5px; }
+  .search-field { grid-column: 1 / -1; order: 3; height: 42px; }
+  .m3-btn-filled-tonal { min-height: 40px; padding-inline: 12px; }
+
+  .m3-player-card {
+    height: min(58svh, 440px);
+    min-height: 250px;
+    aspect-ratio: auto;
+    border-radius: 16px;
+  }
+
+  .stage-top-bar { padding: 10px 12px; }
+  .stage-controls { padding: 9px 11px max(8px, env(safe-area-inset-bottom, 0px)); }
+  .controls-main-row { flex-wrap: wrap; justify-content: space-between; gap: 5px 8px; overflow: visible; }
+  .controls-cluster { flex: 0 1 auto; flex-wrap: wrap; gap: 3px; }
+  .time-readout { margin-inline: 3px; font-size: 11px; }
+  .timeline-slider { height: 20px; margin-bottom: 4px; }
+
+  .subtitle-menu,
+  .speed-menu {
+    width: min(300px, calc(100vw - 20px));
+    min-width: min(240px, calc(100vw - 20px));
+    max-height: min(76dvh, 520px);
+    border-radius: 18px;
+  }
+
+  .player-context-menu {
+    width: min(410px, calc(100vw - 20px));
+    max-height: min(86dvh, 600px);
+    padding: 11px;
+  }
+
+  .player-context-sections { grid-template-columns: 1fr; gap: 7px; }
+  .player-context-section { padding: 8px; }
+  .player-context-items[data-layout="grid"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .player-context-item { min-height: 42px; padding-inline: 7px; }
+  .player-context-footer { flex-direction: column; align-items: stretch; }
+  .player-context-help-button { justify-content: center; }
+  .player-context-navigation-hint { justify-content: center; flex-wrap: wrap; }
+
+  .player-keyboard-help {
+    width: calc(100vw - 20px);
+    max-width: 640px;
+    max-height: calc(100dvh - 20px);
+    padding: 13px;
+  }
+
+  .player-help-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .player-help-group { padding: 9px; }
+  .player-help-row { align-items: flex-start; font-size: 10px; }
+  .player-help-row kbd { min-width: 54px; }
+
+  .player-drawer-overlay { width: min(360px, 88vw); }
+}
+
+/* Narrow portrait phones. */
+@media (max-width: 520px) {
+  :root { --aura-page-gutter: 8px; }
+  .m3-shell { padding: 8px; }
+  .m3-top-bar { border-radius: 15px; }
+  .headline-small { font-size: 1rem; }
+  .top-bar-title .label-small { display: none; }
+  .top-bar-actions { justify-content: flex-end; min-width: 0; }
+  .m3-btn-filled-tonal { min-height: 38px; padding-inline: 10px; font-size: 11px; }
+  #openFolderBtn span,
+  #topBackBtn span { display: none; }
+  #openFolderBtn,
+  #topBackBtn { width: 40px; min-width: 40px; padding-inline: 0; }
+  .m3-btn-filled-tonal svg { width: 17px; height: 17px; }
+  .m3-icon-btn { width: 40px; height: 40px; }
+
+  .explorer-filter-bar { align-items: stretch; gap: 8px; }
+  .m3-chips-group { width: 100%; padding: 3px 7px; }
+  .m3-chip { min-height: 36px; padding-inline: 10px; font-size: 11px; }
+  .video-counter { align-self: flex-start; font-size: 11px; }
+  .videos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+  .poster-meta { align-items: flex-start; padding: 8px; }
+  .poster-title { font-size: 11px; }
+  .folder-head { gap: 8px; padding: 10px; }
+
+  .m3-player-card {
+    height: clamp(250px, 54svh, 390px);
+    min-height: 250px;
+    border-radius: 14px;
+  }
+
+  .stage-top-bar { padding: 8px; }
+  .m3-icon-btn-trans { width: 40px; height: 40px; }
+  .top-nav-buttons { gap: 4px; }
+  .stage-controls { padding: 8px 8px max(8px, env(safe-area-inset-bottom, 0px)); }
+  .controls-main-row { display: grid; grid-template-columns: 1fr; justify-content: stretch; gap: 4px; overflow: visible; }
+  .controls-cluster { width: 100%; flex: 0 1 auto; justify-content: space-between; gap: 2px; }
+  .control-icon-btn { width: 40px; height: 40px; }
+  .subtitle-button { width: 40px; height: 40px; }
+  .volume-cluster .m3-range { display: none; }
+  .aspect-mode-button { min-width: 62px; height: 38px; padding-inline: 8px; font-size: 10px; }
+  .aspect-mode-button svg { width: 16px; height: 16px; }
+  .center-play-trigger { width: 60px; height: 60px; }
+  .center-play-trigger svg { width: 40px; height: 40px; }
+  .time-readout { font-size: 10px; }
+
+  .player-context-menu { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 17px; }
+  .player-context-sections { grid-template-columns: 1fr; }
+  .player-context-items[data-layout="grid"] { grid-template-columns: 1fr; }
+  .player-context-item[data-action="toggle-play"] { grid-column: auto; }
+  .player-context-item { min-height: 43px; }
+  .player-context-footer { gap: 7px; }
+  .player-context-navigation-hint { font-size: 8px; }
+
+  .player-keyboard-help { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 11px; border-radius: 16px; }
+  .player-help-header { gap: 8px; margin-bottom: 10px; padding-bottom: 9px; }
+  .player-help-header strong { font-size: 14px; }
+  .player-help-header p { font-size: 9px; }
+  .player-help-search { min-height: 42px; margin-bottom: 9px; }
+  .player-help-sections { grid-template-columns: 1fr; gap: 7px; }
+  .player-help-group { padding: 9px; }
+  .player-help-grid { gap: 6px; }
+  .player-help-row { min-height: 28px; align-items: center; font-size: 10px; }
+  .player-help-row kbd { max-width: 55%; }
+
+  .player-drawer-overlay { width: min(340px, 92vw); }
+  .subtitle-bubble { max-width: 94vw; padding: 6px 10px; font-size: clamp(13px, 3.8vw, 20px); }
+}
+
+/* Very narrow devices (320–360 CSS px). */
+@media (max-width: 360px) {
+  .top-bar-leading { gap: 7px; }
+  .brand-badge { width: 34px; height: 34px; }
+  .headline-small { font-size: .92rem; }
+  .top-bar-actions { gap: 2px; }
+  .m3-btn-filled-tonal { min-height: 36px; padding-inline: 8px; font-size: 10px; }
+  .m3-btn-filled-tonal span { max-width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .videos-grid { gap: 6px; padding: 6px; }
+  .poster-title { font-size: 10px; }
+  .stage-controls { padding-inline: 6px; }
+  .controls-cluster { gap: 0; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 36px; height: 36px; }
+  .aspect-mode-button { min-width: 56px; height: 36px; padding-inline: 6px; }
+  .time-readout { font-size: 9px; margin-inline: 1px; }
+  .player-context-header { gap: 7px; }
+  .player-context-heading strong { font-size: 14px; }
+  .player-context-heading small { font-size: 9px; }
+}
+
+/* Short landscape phones: keep all controls reachable and avoid a tall modal. */
+@media (max-height: 520px) and (max-width: 900px) {
+  .m3-shell { padding: 6px; }
+  .m3-main-content { margin-top: 8px; }
+  .m3-player-card { height: min(70svh, 310px); min-height: 190px; }
+  .stage-top-bar { padding-block: 5px; }
+  .stage-controls { padding-block: 5px; }
+  .timeline-slider { height: 14px; margin-bottom: 1px; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 34px; height: 34px; }
+  .aspect-mode-button { height: 32px; min-width: 56px; }
+  .player-context-menu { max-height: calc(100dvh - 12px); padding: 8px; }
+  .player-context-header { padding-bottom: 6px; }
+  .player-context-sections { gap: 5px; padding-top: 6px; }
+  .player-context-section { padding: 6px; }
+  .player-context-item { min-height: 34px; padding-block: 3px; }
+  .player-context-icon { width: 22px; height: 22px; }
+  .player-context-footer { margin-top: 5px; padding-top: 5px; }
+  .player-keyboard-help { max-height: calc(100dvh - 12px); padding: 9px; }
+  .player-help-header { margin-bottom: 7px; padding-bottom: 7px; }
+  .player-help-search { min-height: 32px; margin-bottom: 7px; }
+  .player-help-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .player-help-group { padding: 7px; }
+  .player-help-row { min-height: 22px; font-size: 9px; }
+}
+
+/* Touch-first devices: comfortable tap targets and no hover-only affordances. */
+@media (pointer: coarse) {
+  .m3-chip,
+  .folder-load-more-btn,
+  .drawer-load-more-btn,
+  .player-context-help-button { min-height: 40px; }
+  .player-context-item { min-height: 44px; }
+  .player-context-close,
+  .player-help-header button { width: 40px; height: 40px; }
+  .timeline-slider { height: 26px; }
+}
+
+@media (hover: none) {
+  .video-poster-card:hover { transform: none; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); }
+  .video-poster-card:hover .poster-canvas { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+
+/* The same quick controls are available on touch devices via the player toolbar. */
+.quick-menu-open-btn[aria-expanded="true"] {
+  color: var(--m3-on-primary);
+  background: var(--m3-primary);
+}
+
+.quick-menu-open-btn:focus-visible {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   AURA 1.8 — RESPONSIVE LAYOUT NORMALIZATION
+   One final layout contract intentionally overrides legacy breakpoints.
+========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.m3-shell,
+.m3-main-content,
+.explorer-section,
+.player-workspace,
+.folders-accordion,
+.folder-group,
+.folder-head,
+.video-poster-card,
+.poster-meta,
+.player-workspace.active {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.m3-shell {
+  width: min(1480px, 100%);
+  padding: clamp(8px, 1.4vw, 20px);
+}
+
+.m3-top-bar {
+  grid-template-columns: minmax(0, auto) minmax(160px, 1fr) auto;
+  gap: clamp(8px, 1.2vw, 14px);
+}
+
+.top-bar-leading,
+.top-bar-title,
+.top-bar-actions,
+.explorer-only-actions,
+.search-field {
+  min-width: 0;
+}
+
+.search-field {
+  width: 100%;
+}
+
+.top-bar-actions {
+  flex-wrap: wrap;
+}
+
+.videos-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  min-width: 0;
+}
+
+.video-poster-card {
+  min-width: 0;
+}
+
+.poster-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.controls-main-row,
+.controls-cluster {
+  min-width: 0;
+}
+
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Tablet widths need their own header and control geometry. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .m3-shell { padding: 12px; }
+
+  .m3-top-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 10px 12px;
+  }
+
+  .top-bar-leading { grid-column: 1; grid-row: 1; }
+  .top-bar-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+  }
+  .search-field {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+  }
+
+  .explorer-filter-bar { flex-wrap: wrap; }
+  .m3-chips-group { max-width: 100%; overflow-x: auto; }
+  .videos-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 195px), 1fr)); }
+
+  .controls-main-row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    row-gap: 6px;
+  }
+  .controls-cluster { flex-wrap: wrap; }
+  .time-readout { margin-inline: 3px; }
+}
+
+/* Phone / portrait tablet: preserve touch sizes without forcing the player
+   controls into a horizontally scrolling strip. */
+@media (max-width: 760px) {
+  .m3-shell { padding: 10px; }
+  .m3-top-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px;
+  }
+  .top-bar-leading { grid-column: 1; grid-row: 1; }
+  .top-bar-actions {
+    grid-column: 2;
+    grid-row: 1;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+  .search-field {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+  }
+
+  .explorer-filter-bar { align-items: stretch; flex-direction: column; }
+  .m3-chips-group { width: 100%; max-width: 100%; overflow-x: auto; }
+  .video-counter { align-self: flex-start; }
+
+  .m3-player-card {
+    width: 100%;
+    height: min(58svh, 440px);
+    min-height: 220px;
+    aspect-ratio: auto;
+  }
+
+  .controls-main-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    overflow: visible;
+  }
+  .controls-cluster {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 3px;
+  }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { flex: 0 0 auto; }
+  .time-readout { font-size: 10px; margin-inline: 2px; }
+
+  .player-drawer-overlay { width: min(360px, calc(100vw - 24px)); }
+}
+
+@media (max-width: 520px) {
+  .m3-shell { padding: 8px; }
+  .m3-top-bar { padding: 9px; }
+  .headline-small { font-size: 1rem; }
+  .top-bar-title .label-small { display: none; }
+  .top-bar-actions { gap: 4px; }
+  .m3-icon-btn { width: 40px; height: 40px; }
+
+  .videos-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .m3-player-card {
+    height: clamp(220px, 54svh, 390px);
+    min-height: 220px;
+  }
+
+  .stage-top-bar { padding: 8px; }
+  .stage-controls { padding: 8px 8px max(8px, env(safe-area-inset-bottom, 0px)); }
+  .controls-main-row { grid-template-columns: minmax(0, 1fr); }
+  .controls-cluster { gap: 2px; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 40px; height: 40px; }
+  .volume-cluster .m3-range { display: none; }
+  .aspect-mode-button { min-width: 60px; height: 40px; }
+  .time-readout { font-size: 9px; }
+
+  .player-drawer-overlay { width: min(340px, calc(100vw - 20px)); }
+}
+
+@media (max-width: 380px) {
+  .m3-shell { padding: 6px; }
+  .top-bar-leading { gap: 7px; }
+  .brand-badge { width: 34px; height: 34px; }
+  .headline-small { font-size: .94rem; }
+  .top-bar-actions { gap: 3px; }
+  .m3-btn-filled-tonal { min-height: 38px; padding-inline: 8px; font-size: 10px; }
+  .m3-icon-btn { width: 38px; height: 38px; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 38px; height: 38px; }
+  .aspect-mode-button { min-width: 56px; padding-inline: 6px; }
+  .time-readout { font-size: 8px; }
+}
+
+/* Landscape phones and short tablets: scrolling stays inside popups. */
+@media (max-height: 520px) and (max-width: 1100px) {
+  .m3-shell { padding: 6px; }
+  .m3-main-content { margin-top: 8px; }
+  .m3-player-card { height: min(72svh, 360px); min-height: 180px; }
+  .stage-top-bar { padding-block: 5px; }
+  .stage-controls { padding-block: 5px; }
+  .timeline-slider { height: 15px; margin-bottom: 2px; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 34px; height: 34px; }
+  .aspect-mode-button { height: 32px; }
+}
+
+/* =========================================================
+   AURA 1.8 — FLAT, NON-NESTED CONTEXT MENU
+========================================================= */
+
+.player-context-menu {
+  position: fixed;
+  inset: auto;
+  z-index: 10020;
+  display: none;
+  width: min(440px, calc(100vw - 16px));
+  min-width: 0;
+  max-width: calc(100vw - 16px);
+  max-height: min(640px, calc(100dvh - 16px));
+  padding: 13px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  border-radius: 18px;
+  direction: rtl;
+}
+
+.player-context-menu.open {
+  display: block;
+  animation: player-context-enter 120ms ease-out both;
+}
+
+.player-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 1px 1px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.player-context-heading {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.player-context-heading strong {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.player-context-heading small {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.player-context-statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.player-context-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+}
+
+.player-context-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding-top: 11px;
+}
+
+.player-context-item {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  grid-template-rows: minmax(0, auto) auto;
+  grid-template-areas: "icon label" "icon key";
+  align-items: center;
+  column-gap: 9px;
+  row-gap: 3px;
+  width: 100%;
+  min-width: 0;
+  min-height: 62px;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 12px;
+  text-align: right;
+}
+
+.player-context-item[data-variant="primary"],
+.player-context-item[data-variant="wide"] {
+  grid-column: 1 / -1;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "icon label key";
+  min-height: 50px;
+}
+
+.player-context-item[data-variant="primary"] {
+  background: rgba(169, 132, 245, .13);
+  border-color: rgba(193, 167, 244, .22);
+}
+
+.player-context-icon {
+  grid-area: icon;
+  width: 27px;
+  height: 27px;
+  padding: 5px;
+  justify-self: center;
+}
+
+.player-context-label {
+  grid-area: label;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.player-context-item kbd {
+  grid-area: key;
+  justify-self: start;
+  max-width: 100%;
+  min-width: 28px;
+  min-height: 20px;
+  padding-inline: 5px;
+  font-size: 8px;
+}
+
+.player-context-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, .09);
+}
+
+.player-context-help-button {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  white-space: normal;
+}
+
+.player-context-navigation-hint {
+  justify-content: center;
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+@media (max-width: 380px) {
+  .player-context-menu {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .player-context-heading strong { font-size: 14px; }
+  .player-context-heading small { display: none; }
+  .player-context-status { min-height: 20px; padding: 2px 6px; font-size: 8px; }
+  .player-context-close { width: 36px; height: 36px; }
+  .player-context-actions { grid-template-columns: minmax(0, 1fr); gap: 6px; padding-top: 8px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] {
+    grid-column: 1;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "icon label key";
+    min-height: 46px;
+    padding: 6px 9px;
+    column-gap: 9px;
+  }
+  .player-context-icon { width: 25px; height: 25px; }
+  .player-context-label { font-size: 11px; }
+  .player-context-footer { margin-top: 8px; padding-top: 8px; }
+}
+
+@media (max-height: 520px) and (max-width: 1100px) {
+  .player-context-menu {
+    max-height: calc(100dvh - 12px);
+    padding: 8px;
+    border-radius: 14px;
+  }
+  .player-context-header { padding-bottom: 6px; }
+  .player-context-heading small { display: none; }
+  .player-context-actions { gap: 5px; padding-top: 7px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] {
+    min-height: 42px;
+    padding-block: 5px;
+  }
+  .player-context-icon { width: 23px; height: 23px; }
+  .player-context-footer { margin-top: 7px; padding-top: 7px; }
+  .player-context-navigation-hint { display: none; }
+}
+
+@media (pointer: coarse) {
+  .player-context-item { min-height: 64px; }
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] { min-height: 50px; }
+  .player-context-close,
+  .player-context-help-button { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-context-menu.open { animation: none; }
+}
+
+/* =========================================================
+   AURA 1.9 — RESPONSIVE LAYOUT CONTRACT
+   One final responsive layer that supersedes legacy breakpoints.
+   Layout is measured against the available viewport, not device labels.
+========================================================= */
+:root {
+  --aura-page-gutter: clamp(8px, 1.8vw, 24px);
+  --aura-touch-target: 44px;
+  --aura-panel-gutter: 12px;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100svh;
+  padding-inline: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.m3-shell {
+  width: 100%;
+  max-width: 1480px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--aura-page-gutter);
+}
+
+.m3-main-content,
+.explorer-section,
+.explorer-filter-bar,
+.folders-accordion,
+.folder-group,
+.folder-head,
+.player-workspace,
+.player-workspace.active,
+.player-controls,
+.videos-grid {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.m3-main-content {
+  margin-top: clamp(10px, 1.4vw, 20px);
+}
+
+.m3-top-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, min(34vw, 420px)) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+.top-bar-leading,
+.top-bar-title,
+.top-bar-actions,
+.explorer-only-actions,
+.search-field,
+.search-field input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-field {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.explorer-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.m3-chips-group {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.m3-chips-group::-webkit-scrollbar { display: none; }
+
+.videos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+  gap: clamp(8px, 1.2vw, 14px);
+  min-width: 0;
+}
+
+.video-poster-card,
+.poster-meta,
+.poster-title,
+.drawer-v-item,
+.drawer-v-name {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.poster-title,
+.drawer-v-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m3-player-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  max-height: min(82svh, 860px);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: clamp(12px, 1.3vw, 20px);
+  touch-action: pan-y;
+}
+
+.m3-player-card video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.stage-top-bar {
+  min-width: 0;
+  gap: 8px;
+  padding: clamp(7px, 1.2vw, 16px) clamp(8px, 1.5vw, 18px);
+}
+
+.top-nav-group,
+.top-nav-buttons {
+  min-width: 0;
+  gap: clamp(4px, .7vw, 8px);
+}
+
+.stage-controls {
+  min-width: 0;
+  padding: clamp(8px, 1.4vw, 16px) clamp(8px, 1.5vw, 18px) max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.timeline-slider {
+  width: 100%;
+  min-width: 0;
+  touch-action: pan-y;
+}
+
+.controls-main-row,
+.controls-cluster,
+.volume-cluster,
+.subtitle-wrapper,
+.speed-wrapper {
+  min-width: 0;
+}
+
+.controls-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: clamp(5px, .9vw, 12px);
+}
+
+.controls-cluster {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  gap: clamp(2px, .55vw, 7px);
+}
+
+.control-icon-btn,
+.subtitle-button,
+.m3-icon-btn-trans,
+.aspect-mode-button {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.time-readout {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.volume-cluster { flex: 0 0 auto; }
+.volume-cluster .m3-range { width: clamp(44px, 5vw, 74px); }
+
+/* Tablet landscape and compact desktop: two-row header, flexible controls. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .m3-shell { padding: 12px; }
+
+  .m3-top-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 9px 12px;
+  }
+
+  .top-bar-leading { grid-column: 1; grid-row: 1; }
+  .top-bar-actions {
+    grid-column: 2;
+    grid-row: 1;
+    flex-wrap: nowrap;
+  }
+  .search-field {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .m3-player-card { max-height: min(72svh, 620px); }
+  .controls-main-row {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .controls-cluster { flex: 1 1 auto; justify-content: space-between; }
+}
+
+/* Tablets in portrait and phones: stacked header, 16:9 stage, two control rows. */
+@media (max-width: 760px) {
+  :root { --aura-page-gutter: 10px; }
+
+  .m3-shell { padding: var(--aura-page-gutter); }
+
+  .m3-top-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .top-bar-leading { grid-column: 1; grid-row: 1; gap: 8px; }
+  .top-bar-actions {
+    grid-column: 2;
+    grid-row: 1;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+  .search-field {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 40px;
+  }
+
+  .brand-badge { width: 36px; height: 36px; }
+  .headline-small { font-size: clamp(14px, 2.5vw, 17px); }
+  .m3-btn-filled-tonal { min-height: 40px; padding-inline: 10px; }
+  .m3-icon-btn { width: 40px; height: 40px; }
+
+  .explorer-filter-bar { align-items: stretch; flex-direction: column; gap: 8px; }
+  .m3-chips-group { width: 100%; padding-block: 2px; }
+  .video-counter { align-self: flex-start; }
+  .videos-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
+
+  .m3-player-card {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: min(70svh, 520px);
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+  }
+
+  .stage-top-bar { padding: 7px 8px; }
+  .m3-icon-btn-trans { width: 38px; height: 38px; }
+  .stage-controls { padding: 7px 9px max(7px, env(safe-area-inset-bottom, 0px)); }
+  .timeline-slider { height: 18px; margin-bottom: 3px; }
+
+  .controls-main-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+    overflow: visible;
+  }
+
+  .controls-cluster {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+  }
+
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 38px; height: 38px; }
+  .volume-cluster .m3-range { display: none; }
+  .time-readout { margin-inline: 2px; font-size: 10px; }
+  .aspect-mode-button { min-width: 58px; height: 36px; padding-inline: 7px; font-size: 10px; }
+  .aspect-mode-button svg { width: 15px; height: 15px; }
+
+  .player-drawer-overlay { width: min(360px, calc(100vw - 20px)); }
+}
+
+/* Small phones: remove text pressure from the chrome, not from controls. */
+@media (max-width: 420px) {
+  :root { --aura-page-gutter: 8px; }
+  .m3-shell { padding: 8px; }
+  .m3-top-bar { padding: 8px; gap: 7px; }
+  .brand-badge { width: 33px; height: 33px; border-radius: 10px; }
+  .headline-small { font-size: 14px; }
+  .top-bar-title .label-small { display: none; }
+  #openFolderBtn span,
+  #topBackBtn span { display: none; }
+  #openFolderBtn,
+  #topBackBtn { width: 38px; min-width: 38px; padding-inline: 0; }
+  .m3-btn-filled-tonal { min-height: 38px; }
+  .m3-icon-btn { width: 38px; height: 38px; }
+  .videos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 7px; }
+  .poster-meta { padding: 7px; }
+  .poster-title { font-size: 10px; }
+  .m3-player-card { max-height: min(62svh, 420px); }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 36px; height: 36px; }
+  .aspect-mode-button { min-width: 48px; width: 48px; height: 36px; padding-inline: 5px; }
+  .aspect-mode-button span { display: none; }
+  .volume-cluster { gap: 0; }
+  .time-readout { gap: 2px; font-size: 9px; }
+}
+
+@media (max-width: 350px) {
+  .videos-grid { grid-template-columns: minmax(0, 1fr); }
+  .controls-cluster { gap: 1px; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 34px; height: 34px; }
+  .aspect-mode-button { width: 40px; min-width: 40px; height: 34px; }
+  .time-readout { font-size: 8px; }
+  .speed-button { min-width: 52px; padding-inline: 8px; }
+}
+
+/* Short landscape viewports: use the available height and keep controls reachable. */
+@media (max-height: 540px) and (max-width: 1100px) {
+  .m3-shell { padding-block: 6px; }
+  .m3-main-content { margin-top: 7px; }
+  .m3-player-card {
+    max-height: calc(100svh - 105px);
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+  .stage-top-bar { padding-block: 4px; }
+  .stage-controls { padding-block: 4px; }
+  .timeline-slider { height: 14px; margin-bottom: 1px; }
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans { width: 32px; height: 32px; }
+  .aspect-mode-button { height: 32px; }
+  .controls-main-row { gap: 2px; }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 900px) {
+  .m3-top-bar { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto; }
+  .search-field { display: none; }
+  .m3-player-card { max-height: calc(100svh - 30px); }
+  .controls-main-row { display: flex; flex-wrap: nowrap; }
+  .controls-cluster { flex-wrap: nowrap; }
+}
+
+/* Context menu: legible glass surface and a single-row action anatomy. */
+.player-context-menu {
+  position: fixed;
+  inset: auto;
+  width: min(520px, calc(100vw - 24px));
+  min-width: 0;
+  max-width: calc(100vw - 16px);
+  max-height: min(640px, calc(100dvh - 24px));
+  padding: clamp(10px, 1.5vw, 15px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-radius: 18px;
+  --aura-glass-bg: rgba(29, 26, 36, .94);
+  --aura-glass-blur: 14px;
+  color: #fbf9ff;
+  background: rgba(29, 26, 36, .93);
+  border: 1px solid rgba(255, 255, 255, .21);
+  box-shadow: 0 22px 64px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255, 255, 255, .09);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  backdrop-filter: blur(16px) saturate(145%);
+}
+
+.player-context-header { align-items: center; gap: 12px; padding: 2px 1px 11px; }
+.player-context-heading { gap: 3px; }
+.player-context-heading strong { font-size: clamp(14px, 1.7vw, 17px); line-height: 1.4; }
+.player-context-heading small { font-size: 10px; line-height: 1.5; }
+.player-context-statusbar { gap: 6px; margin-top: 6px; }
+.player-context-status { min-height: 24px; padding: 4px 8px; font-size: 9px; }
+.player-context-close { width: 38px; height: 38px; border-radius: 11px; }
+
+.player-context-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.player-context-item,
+.player-context-item[data-variant="primary"],
+.player-context-item[data-variant="wide"] {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "icon label key";
+  align-items: center;
+  justify-items: stretch;
+  column-gap: 9px;
+  row-gap: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  grid-column: auto;
+  padding: 8px 10px;
+  text-align: right;
+  background: rgba(255, 255, 255, .055);
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 12px;
+}
+
+.player-context-item[data-variant="primary"] {
+  grid-column: 1 / -1;
+  min-height: 54px;
+  background: rgba(169, 132, 245, .15);
+  border-color: rgba(193, 167, 244, .28);
+}
+
+.player-context-item[data-variant="wide"] { grid-column: 1 / -1; }
+.player-context-icon { grid-area: icon; width: 30px; height: 30px; padding: 6px; }
+.player-context-label {
+  grid-area: label;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.player-context-item kbd {
+  grid-area: key;
+  justify-self: end;
+  max-width: 82px;
+  min-width: 32px;
+  min-height: 24px;
+  padding: 4px 7px;
+  white-space: nowrap;
+  font-size: 9px;
+}
+.player-context-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; margin-top: 11px; padding: 10px 0 1px; }
+.player-context-help-button { min-height: 44px; justify-content: center; gap: 9px; font-size: 11px; }
+.player-context-navigation-hint { justify-content: center; flex-wrap: wrap; white-space: normal; font-size: 9px; }
+
+.player-keyboard-help {
+  width: min(760px, calc(100vw - 24px));
+  max-width: calc(100vw - 16px);
+  max-height: min(88dvh, 760px);
+  --aura-glass-bg: rgba(29, 26, 36, .94);
+  --aura-glass-blur: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-radius: 18px;
+  background: rgba(29, 26, 36, .94);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+.player-help-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.player-help-group,
+.player-help-row,
+.player-help-row > span { min-width: 0; }
+.player-help-row { align-items: center; gap: 10px; line-height: 1.55; }
+.player-help-row > span { overflow-wrap: break-word; }
+.player-help-row kbd { max-width: 46%; white-space: normal; overflow-wrap: anywhere; }
+
+/* Speed/subtitle panels are viewport overlays too; clear legacy fixed-bottom offsets. */
+.subtitle-menu,
+.speed-menu {
+  position: fixed !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: min(320px, calc(100vw - 24px)) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 16px) !important;
+  max-height: min(82dvh, 580px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.player-drawer-overlay {
+  width: min(360px, calc(100vw - 20px));
+  max-width: calc(100vw - 12px);
+}
+
+/* Touch-first compact layout: menus never use cramped nested cards. */
+@media (max-width: 620px) {
+  .player-context-menu {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .player-context-actions { grid-template-columns: minmax(0, 1fr); gap: 6px; padding-top: 9px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] {
+    grid-column: 1;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "icon label key";
+    min-height: 48px;
+    padding: 6px 9px;
+  }
+  .player-context-item[data-variant="primary"] { min-height: 50px; }
+  .player-context-footer { margin-top: 8px; padding-top: 8px; }
+  .player-context-navigation-hint { font-size: 8px; }
+  .player-help-sections { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .player-help-group { padding: 10px; }
+  .player-keyboard-help { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 11px; }
+}
+
+@media (max-width: 380px) {
+  .player-context-heading small { display: none; }
+  .player-context-heading strong { font-size: 14px; }
+  .player-context-status { min-height: 21px; padding: 3px 6px; font-size: 8px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] { min-height: 45px; column-gap: 7px; }
+  .player-context-icon { width: 27px; height: 27px; }
+  .player-context-label { font-size: 11px; }
+  .player-context-item kbd { min-width: 29px; min-height: 22px; padding-inline: 5px; font-size: 8px; }
+  .player-context-navigation-hint { display: none; }
+}
+
+@media (max-height: 560px) and (max-width: 1100px) {
+  .player-context-menu { max-height: calc(100dvh - 12px); padding: 8px; }
+  .player-context-header { padding-bottom: 7px; }
+  .player-context-heading small { display: none; }
+  .player-context-actions { gap: 5px; padding-top: 7px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] { min-height: 40px; padding-block: 4px; }
+  .player-context-icon { width: 24px; height: 24px; }
+  .player-context-footer { margin-top: 6px; padding-top: 6px; }
+  .player-context-navigation-hint { display: none; }
+}
+
+@media (pointer: coarse) {
+  .control-icon-btn,
+  .subtitle-button,
+  .m3-icon-btn-trans,
+  .player-context-close { min-width: 40px; min-height: 40px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] { min-height: 50px; }
+  .player-context-help-button { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-context-menu.open { animation: none; }
+  .m3-player-card,
+  .player-context-item,
+  .player-context-close,
+  .player-drawer-overlay { transition: none !important; }
+}
+
+/* Native fullscreen always takes the actual screen, independent of device width. */
+.m3-player-card:fullscreen,
+.m3-player-card:-webkit-full-screen,
+.m3-player-card.is-fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  min-height: 0;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.m3-player-card:fullscreen video,
+.m3-player-card:-webkit-full-screen video,
+.m3-player-card.is-fullscreen video { width: 100%; height: 100%; object-fit: contain; }
+
+/* The help dialog is centered by the overlay controller, which accounts for
+   visualViewport offsets on zoomed mobile screens and mobile keyboards. */
+.player-keyboard-help {
+  left: 8px;
+  top: 8px;
+  transform: none;
+}
+
+
+/* =========================================================
+   AURA 1.9.1 — GLASS RESTORE + FINAL DEVICE LAYOUT
+   This layer intentionally supersedes legacy breakpoint rules above.
+========================================================= */
+:root {
+  --aura-glass-bg: rgba(25, 22, 33, .76);
+  --aura-glass-border: rgba(255, 255, 255, .22);
+  --aura-glass-highlight: rgba(255, 255, 255, .11);
+  --aura-glass-blur: 18px;
+  --aura-glass-saturate: 165%;
+  --aura-glass-shadow: 0 22px 58px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .12);
+  --aura-page-gutter: clamp(8px, 1.7vw, 24px);
+  --aura-touch-target: 44px;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100svh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.m3-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1480px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--aura-page-gutter);
+}
+
+.m3-main-content,
+.explorer-section,
+.explorer-filter-bar,
+.folders-accordion,
+.folder-group,
+.folder-head,
+.player-workspace,
+.player-workspace.active,
+.player-controls,
+.videos-grid,
+.m3-top-bar,
+.top-bar-leading,
+.top-bar-title,
+.top-bar-actions,
+.explorer-only-actions,
+.search-field,
+.search-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.m3-top-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, min(34vw, 420px)) auto;
+  grid-template-rows: auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.top-bar-leading,
+.top-bar-title,
+.top-bar-actions,
+.explorer-only-actions { min-width: 0; }
+.top-bar-leading { display: flex; align-items: center; gap: 10px; }
+.top-bar-title { overflow: hidden; }
+.top-bar-title .headline-small,
+.top-bar-title .label-small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.top-bar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: nowrap; gap: 8px; }
+.explorer-only-actions { display: flex; align-items: center; gap: 6px; }
+.search-field { min-width: 0; max-width: none; }
+.search-field input { min-width: 0; }
+
+.explorer-filter-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.m3-chips-group { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: none; }
+.m3-chips-group::-webkit-scrollbar { display: none; }
+.videos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: clamp(8px, 1.2vw, 14px); }
+.video-poster-card,
+.poster-meta,
+.poster-title,
+.drawer-v-item,
+.drawer-v-name { min-width: 0; max-width: 100%; }
+.poster-title,
+.drawer-v-name { overflow: hidden; text-overflow: ellipsis; }
+
+.m3-player-card {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  max-height: min(82svh, 860px);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.m3-player-card video { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
+.stage-top-bar,
+.stage-controls,
+.controls-main-row,
+.controls-cluster,
+.volume-cluster,
+.subtitle-wrapper,
+.speed-wrapper { min-width: 0; }
+.controls-main-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: clamp(4px, .8vw, 12px); }
+.controls-cluster { display: flex; align-items: center; flex: 0 1 auto; flex-wrap: nowrap; gap: clamp(2px, .5vw, 7px); }
+.control-icon-btn,
+.subtitle-button,
+.m3-icon-btn-trans,
+.aspect-mode-button { flex: 0 0 auto; min-width: 0; }
+.time-readout { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Shared frosted-glass material for every floating in-app surface. */
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  box-sizing: border-box;
+  color: #fbf9ff;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.025) 42%, rgba(255,255,255,.045)),
+    var(--aura-glass-bg) !important;
+  border: 1px solid var(--aura-glass-border) !important;
+  box-shadow: var(--aura-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) contrast(108%) !important;
+  backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) contrast(108%) !important;
+  isolation: isolate;
+}
+
+.player-context-menu,
+.player-keyboard-help,
+.speed-menu,
+.subtitle-menu,
+.player-drawer-overlay {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.24) transparent;
+}
+
+.player-context-menu,
+.player-keyboard-help,
+.speed-menu,
+.subtitle-menu {
+  z-index: 10020;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+.player-context-menu {
+  width: min(520px, calc(100vw - 24px));
+  padding: clamp(12px, 1.7vw, 16px);
+  border-radius: 20px;
+}
+.player-context-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; min-width: 0; }
+.player-context-item,
+.player-context-item[data-variant="primary"],
+.player-context-item[data-variant="wide"] {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "icon label key";
+  align-items: center;
+  justify-items: stretch;
+  min-width: 0;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 10px;
+  column-gap: 9px;
+  row-gap: 0;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 13px;
+  background: rgba(255,255,255,.065);
+}
+.player-context-item[data-variant="primary"],
+.player-context-item[data-variant="wide"] { grid-column: 1 / -1; }
+.player-context-icon { grid-area: icon; width: 30px; height: 30px; }
+.player-context-label { grid-area: label; min-width: 0; font-size: 12px; line-height: 1.55; overflow-wrap: normal; word-break: normal; }
+.player-context-item kbd { grid-area: key; justify-self: end; max-width: 88px; white-space: nowrap; }
+.player-context-footer { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; }
+.player-context-help-button { min-height: 44px; width: 100%; justify-content: center; }
+.player-keyboard-help { width: min(760px, calc(100vw - 24px)); padding: 16px; border-radius: 20px; }
+.player-help-sections { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.player-help-group { min-width: 0; }
+.player-help-row { min-width: 0; gap: 10px; }
+.player-help-row > span { min-width: 0; overflow-wrap: anywhere; }
+.player-help-row kbd { flex: 0 0 auto; max-width: 48%; white-space: normal; overflow-wrap: anywhere; }
+
+.subtitle-menu,
+.speed-menu {
+  width: min(320px, calc(100vw - 24px)) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 24px) !important;
+  max-height: min(82dvh, 620px);
+  padding: 14px;
+  border-radius: 18px;
+}
+.player-drawer-overlay { width: min(380px, 90vw); max-width: calc(100vw - 16px); }
+
+html.aura-fast-playback { --aura-glass-blur: 12px; --aura-glass-bg: rgba(25,22,32,.80); }
+html.aura-extreme-playback { --aura-glass-blur: 8px; --aura-glass-bg: rgba(24,22,30,.83); }
+
+@media (min-width: 641px) and (max-width: 900px) {
+  :root { --aura-page-gutter: 12px; }
+  .m3-top-bar { grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 9px 12px; }
+  .top-bar-leading { grid-column: 1; grid-row: 1; }
+  .top-bar-actions { grid-column: 2; grid-row: 1; }
+  .search-field { grid-column: 1 / -1; grid-row: 2; }
+  .m3-player-card { max-height: min(66svh, 620px); }
+  .controls-main-row { flex-wrap: wrap; row-gap: 7px; }
+  .controls-cluster { flex: 1 1 100%; justify-content: space-between; }
+  .player-context-menu { width: min(520px, calc(100vw - 32px)); }
+}
+
+@media (max-width: 640px) {
+  :root { --aura-page-gutter: 8px; --aura-glass-blur: 20px; }
+  .m3-shell { padding: 8px; }
+  .m3-main-content { margin-top: 10px; }
+  .m3-top-bar {
+    grid-template-columns: minmax(0,1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    padding: 9px;
+    border-radius: 16px;
+  }
+  .top-bar-leading { grid-column: 1; grid-row: 1; gap: 8px; }
+  .top-bar-title { width: auto; }
+  .top-bar-title .label-small { display: none; }
+  .headline-small { font-size: clamp(13px, 3.6vw, 16px); }
+  .top-bar-actions { grid-column: 2; grid-row: 1; justify-content: flex-end; gap: 5px; }
+  .explorer-only-actions { gap: 4px; }
+  .search-field { grid-column: 1 / -1; grid-row: 2; width: 100%; min-height: 40px; }
+  #openFolderBtn span, #topBackBtn span { display: none; }
+  #openFolderBtn, #topBackBtn, .m3-icon-btn { width: 40px; min-width: 40px; height: 40px; padding-inline: 0; }
+
+  .explorer-filter-bar { align-items: stretch; flex-direction: column; gap: 7px; }
+  .m3-chips-group { display: flex; width: 100%; gap: 6px; padding: 3px 1px 6px; }
+  .m3-chip { flex: 0 0 auto; min-height: 38px; padding-inline: 11px; font-size: 11px; }
+  .video-counter { align-self: flex-start; }
+  .videos-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; padding: 6px 0; }
+  .poster-meta { padding: 8px; }
+  .poster-title { font-size: 11px; line-height: 1.5; }
+
+  /* Give the video and its controls enough vertical room on portrait phones. */
+  .m3-player-card {
+    width: 100%;
+    height: clamp(218px, 62vw, 340px);
+    min-height: 218px;
+    max-height: min(62svh, 380px);
+    aspect-ratio: auto;
+    border-radius: 14px;
+  }
+  .stage-top-bar { padding: 7px 8px; }
+  .top-nav-group, .top-nav-buttons { gap: 4px; }
+  .m3-icon-btn-trans { width: 40px; height: 40px; }
+  .stage-controls { padding: 7px 8px max(8px, env(safe-area-inset-bottom, 0px)); }
+  .timeline-slider { height: 17px; margin-bottom: 2px; }
+  .controls-main-row { display: grid; grid-template-columns: minmax(0,1fr); gap: 5px; width: 100%; overflow: visible; }
+  .controls-cluster { display: flex; width: 100%; min-width: 0; flex: 0 1 auto; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 3px; }
+  .control-icon-btn, .subtitle-button, .m3-icon-btn-trans { width: 40px; min-width: 40px; height: 40px; }
+  .volume-cluster { gap: 0; }
+  .volume-cluster .m3-range { display: none; }
+  .time-readout { margin-inline: 2px; gap: 3px; font-size: 10px; }
+  .aspect-mode-button { width: 48px; min-width: 48px; height: 40px; padding-inline: 6px; }
+  .aspect-mode-button span { display: none; }
+  .speed-button { min-width: 58px; height: 38px; }
+
+  .player-context-menu {
+    width: min(440px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: min(82dvh, 680px);
+    padding: 12px;
+    border-radius: 18px;
+  }
+  .player-context-actions { grid-template-columns: minmax(0,1fr); gap: 7px; padding-top: 10px; }
+  .player-context-item,
+  .player-context-item[data-variant="primary"],
+  .player-context-item[data-variant="wide"] {
+    grid-column: 1;
+    grid-template-columns: 32px minmax(0,1fr) auto;
+    grid-template-areas: "icon label key";
+    min-height: 48px;
+    padding: 6px 10px;
+    column-gap: 9px;
+  }
+  .player-context-item[data-variant="primary"] { min-height: 50px; }
+  .player-context-label { font-size: 12px; }
+  .player-context-item kbd { min-height: 24px; font-size: 9px; }
+  .player-context-footer { margin-top: 9px; padding-top: 9px; }
+  .player-context-navigation-hint { display: none; }
+
+  .player-keyboard-help { width: calc(100vw - 24px); max-width: 600px; max-height: calc(100dvh - 24px); padding: 13px; border-radius: 18px; }
+  .player-help-sections { grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .player-help-group { padding: 10px; }
+  .player-help-row { align-items: center; gap: 8px; font-size: 11px; }
+  .player-help-row kbd { max-width: 44%; min-width: 56px; }
+
+  .subtitle-menu, .speed-menu { width: min(360px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important; max-height: min(78dvh, 600px); padding: 13px; }
+  .player-drawer-overlay { width: min(360px, calc(100vw - 18px)); max-width: calc(100vw - 18px); }
+}
+
+@media (max-width: 380px) {
+  .m3-shell { padding: 6px; }
+  .m3-top-bar { padding: 8px; gap: 6px; }
+  .headline-small { font-size: 13px; }
+  .top-bar-leading { gap: 7px; }
+  .brand-badge { width: 34px; height: 34px; }
+  #openFolderBtn, #topBackBtn, .m3-icon-btn { width: 38px; min-width: 38px; height: 38px; }
+  .videos-grid { gap: 7px; }
+  .m3-player-card { height: clamp(210px, 66vw, 300px); min-height: 210px; }
+  .stage-top-bar { padding: 5px 6px; }
+  .m3-icon-btn-trans { width: 36px; min-width: 36px; height: 36px; }
+  .stage-controls { padding-inline: 6px; }
+  .controls-main-row { gap: 3px; }
+  .controls-cluster { gap: 1px; }
+  .control-icon-btn, .subtitle-button { width: 36px; min-width: 36px; height: 36px; }
+  .aspect-mode-button { width: 42px; min-width: 42px; height: 36px; }
+  .time-readout { font-size: 9px; }
+  .player-context-menu { width: calc(100vw - 20px); max-width: calc(100vw - 20px); padding: 10px; }
+  .player-context-heading strong { font-size: 14px; }
+  .player-context-heading small { display: none; }
+  .player-context-item, .player-context-item[data-variant="primary"], .player-context-item[data-variant="wide"] { min-height: 46px; padding-inline: 8px; column-gap: 7px; }
+  .player-context-label { font-size: 11px; }
+  .player-context-icon { width: 27px; height: 27px; }
+  .player-context-item kbd { min-width: 30px; padding-inline: 5px; font-size: 8px; }
+}
+
+@media (min-width: 381px) and (max-width: 640px) and (orientation: landscape) {
+  .m3-player-card { height: min(64svh, 320px); min-height: 180px; max-height: calc(100svh - 110px); }
+}
+
+@media (max-width: 900px) and (max-height: 540px) and (orientation: landscape) {
+  .m3-shell { padding-block: 4px; }
+  .m3-main-content { margin-top: 6px; }
+  .m3-top-bar { grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto; padding-block: 5px; }
+  .search-field { display: none; }
+  .m3-player-card { height: calc(100svh - 116px); min-height: 0; max-height: calc(100svh - 116px); aspect-ratio: auto; }
+  .stage-top-bar { padding: 4px 7px; }
+  .stage-controls { padding: 4px 7px max(4px, env(safe-area-inset-bottom, 0px)); }
+  .timeline-slider { height: 13px; margin-bottom: 0; }
+  .controls-main-row { display: flex; flex-wrap: nowrap; gap: 3px; }
+  .controls-cluster { flex: 1 1 0; flex-wrap: nowrap; justify-content: space-between; gap: 1px; }
+  .control-icon-btn, .subtitle-button, .m3-icon-btn-trans { width: 32px; min-width: 32px; height: 32px; }
+  .aspect-mode-button { height: 32px; }
+  .player-context-menu, .player-keyboard-help, .speed-menu, .subtitle-menu { max-height: calc(100dvh - 12px); }
+}
+
+@media (pointer: coarse) {
+  .m3-icon-btn, .m3-icon-btn-trans, .control-icon-btn, .subtitle-button,
+  .player-context-close, .player-context-help-button, .speed-button,
+  .apply-speed, .subtitle-upload { min-height: 40px; }
+  .m3-icon-btn, .m3-icon-btn-trans, .control-icon-btn, .subtitle-button { min-width: 40px; }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subtitle-menu, .speed-menu, .player-context-menu, .player-keyboard-help,
+  .player-drawer-overlay, .player-osd, .player-status, .seek-tooltip {
+    background: rgba(27, 24, 34, .97) !important;
+  }
+}
+
+
+/* =========================================================
+   AURA 2.0.0 — PREMIUM MULTI-LAYER FROSTED GLASS
+   A real translucent material system: visible background refraction,
+   stronger saturation, layered reflections, edge lighting and depth.
+   Kept shared across every floating in-app surface.
+========================================================= */
+:root {
+  --aura-glass-bg: rgba(29, 24, 40, .40);
+  --aura-glass-border: rgba(255, 255, 255, .34);
+  --aura-glass-highlight: rgba(255, 255, 255, .22);
+  --aura-glass-blur: 30px;
+  --aura-glass-saturate: 190%;
+  --aura-glass-shadow:
+    0 26px 76px rgba(0, 0, 0, .46),
+    0 8px 24px rgba(0, 0, 0, .24),
+    inset 0 1px 0 rgba(255, 255, 255, .34),
+    inset 0 -1px 0 rgba(255, 255, 255, .09);
+  --aura-glass-inner-bg: rgba(255, 255, 255, .075);
+  --aura-glass-inner-border: rgba(255, 255, 255, .19);
+}
+
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  isolation: isolate;
+  color: #fff;
+  background:
+    linear-gradient(132deg,
+      rgba(255, 255, 255, .20) 0%,
+      rgba(255, 255, 255, .075) 22%,
+      rgba(255, 255, 255, .018) 54%,
+      rgba(255, 255, 255, .085) 100%),
+    radial-gradient(120% 90% at 0% 0%, rgba(204, 177, 255, .17), transparent 58%),
+    radial-gradient(100% 80% at 100% 100%, rgba(111, 174, 255, .105), transparent 62%),
+    var(--aura-glass-bg) !important;
+  border: 1px solid var(--aura-glass-border) !important;
+  box-shadow: var(--aura-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) contrast(112%) brightness(1.08) !important;
+  backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) contrast(112%) brightness(1.08) !important;
+  background-clip: padding-box;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .24);
+}
+
+/* A soft reflected light sheet and a fine inner-glass rim. The negative
+   stacking level stays above the panel background but below its contents. */
+.subtitle-menu::before,
+.speed-menu::before,
+.player-context-menu::before,
+.player-keyboard-help::before,
+.player-drawer-overlay::before,
+.player-osd::before,
+.player-status::before,
+.seek-tooltip::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(118deg,
+      rgba(255, 255, 255, .19) 0%,
+      rgba(255, 255, 255, .045) 24%,
+      transparent 48%,
+      rgba(255, 255, 255, .055) 76%,
+      rgba(255, 255, 255, .13) 100%),
+    radial-gradient(75% 42% at 50% 0%, rgba(255, 255, 255, .12), transparent 100%);
+  opacity: .92;
+}
+
+.subtitle-menu::after,
+.speed-menu::after,
+.player-context-menu::after,
+.player-keyboard-help::after,
+.player-drawer-overlay::after,
+.player-osd::after,
+.player-status::after,
+.seek-tooltip::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  border: 1px solid rgba(255, 255, 255, .105);
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .17), inset 0 -12px 28px rgba(0, 0, 0, .075);
+}
+
+/* Floating cards inside the glass surfaces use a second, lighter pane. */
+.player-context-section,
+.player-context-item,
+.player-context-help-button,
+.player-help-group,
+.player-help-search,
+.speed-input-wrap,
+.drawer-v-item,
+.subtitle-upload,
+.subtitle-file,
+.subtitle-option,
+.menu-header button,
+.speed-header button,
+.player-help-header button {
+  background-color: var(--aura-glass-inner-bg);
+  border-color: var(--aura-glass-inner-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 3px 12px rgba(0, 0, 0, .10);
+}
+
+.player-context-item:hover,
+.player-context-help-button:hover,
+.drawer-v-item:hover,
+.menu-header button:hover,
+.speed-header button:hover,
+.player-help-header button:hover {
+  background-color: rgba(255, 255, 255, .14);
+  border-color: rgba(255, 255, 255, .27);
+}
+
+.player-context-item[aria-pressed="true"],
+.player-context-item:active,
+.drawer-v-item.active {
+  background-color: rgba(190, 157, 255, .20);
+  border-color: rgba(218, 198, 255, .35);
+}
+
+.player-context-heading strong,
+.player-help-header strong,
+.speed-header strong,
+.menu-header strong {
+  text-shadow: 0 1px 7px rgba(0, 0, 0, .34);
+}
+
+.player-context-item kbd,
+.player-help-row kbd,
+.player-context-help-button kbd {
+  background: rgba(255, 255, 255, .13);
+  border-color: rgba(255, 255, 255, .22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 2px 6px rgba(0, 0, 0, .12);
+}
+
+/* Keep the material visibly translucent during fast playback. Blur is
+   reduced progressively for GPU headroom, but never removed. */
+html.aura-fast-playback {
+  --aura-glass-bg: rgba(29, 24, 40, .46);
+  --aura-glass-blur: 23px;
+  --aura-glass-saturate: 180%;
+}
+html.aura-extreme-playback {
+  --aura-glass-bg: rgba(29, 24, 40, .53);
+  --aura-glass-blur: 17px;
+  --aura-glass-saturate: 170%;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --aura-glass-blur: 24px;
+    --aura-glass-saturate: 185%;
+    --aura-glass-shadow:
+      0 18px 48px rgba(0, 0, 0, .42),
+      0 5px 16px rgba(0, 0, 0, .20),
+      inset 0 1px 0 rgba(255, 255, 255, .31),
+      inset 0 -1px 0 rgba(255, 255, 255, .08);
+  }
+  html.aura-fast-playback { --aura-glass-blur: 19px; }
+  html.aura-extreme-playback { --aura-glass-blur: 14px; }
+  .player-context-menu,
+  .player-keyboard-help,
+  .speed-menu,
+  .subtitle-menu,
+  .player-drawer-overlay {
+    border-color: rgba(255, 255, 255, .31) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --aura-glass-bg: rgba(27, 24, 35, .94); --aura-glass-blur: 0px; }
+  html.aura-fast-playback,
+  html.aura-extreme-playback { --aura-glass-bg: rgba(27, 24, 35, .96); --aura-glass-blur: 0px; }
+  .subtitle-menu,
+  .speed-menu,
+  .player-context-menu,
+  .player-keyboard-help,
+  .player-drawer-overlay,
+  .player-osd,
+  .player-status,
+  .seek-tooltip {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subtitle-menu,
+  .speed-menu,
+  .player-context-menu,
+  .player-keyboard-help,
+  .player-drawer-overlay,
+  .player-osd,
+  .player-status,
+  .seek-tooltip {
+    background: rgba(27, 24, 35, .96) !important;
+  }
+}
+
+
+/* =========================================================
+   AURA 2.1.0 — TRUE TRANSLUCENT GLASS MATERIAL
+   Fixes the opaque fast-playback inheritance from the player stage.
+   One material definition is shared by portalled and in-stage overlays.
+========================================================= */
+:root {
+  --aura-glass-bg: rgba(18, 21, 33, .16);
+  --aura-glass-border: rgba(255, 255, 255, .38);
+  --aura-glass-highlight: rgba(255, 255, 255, .30);
+  --aura-glass-blur: 32px;
+  --aura-glass-saturate: 190%;
+  --aura-glass-contrast: 108%;
+  --aura-glass-shadow:
+    0 30px 90px rgba(0, 0, 0, .34),
+    0 8px 26px rgba(0, 0, 0, .16),
+    inset 0 1px 0 rgba(255, 255, 255, .48),
+    inset 1px 0 0 rgba(255, 255, 255, .18),
+    inset 0 -1px 0 rgba(255, 255, 255, .13);
+  --aura-glass-card-bg: rgba(255, 255, 255, .055);
+  --aura-glass-card-border: rgba(255, 255, 255, .20);
+}
+
+/* The glass must stay clear whether a panel is portalled to body or remains
+   inside .m3-player-card. Legacy menu selectors set their own .76/.94 values;
+   explicitly inherit the page material so those local declarations cannot
+   silently turn the panel opaque. */
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  --aura-glass-bg: inherit !important;
+  --aura-glass-border: inherit !important;
+  --aura-glass-blur: inherit !important;
+  --aura-glass-saturate: inherit !important;
+  --aura-glass-contrast: inherit !important;
+  --aura-glass-shadow: inherit !important;
+}
+html.aura-fast-playback {
+  --aura-glass-bg: rgba(18, 21, 33, .20);
+  --aura-glass-blur: 24px;
+  --aura-glass-saturate: 180%;
+}
+html.aura-extreme-playback {
+  --aura-glass-bg: rgba(18, 21, 33, .24);
+  --aura-glass-blur: 18px;
+  --aura-glass-saturate: 172%;
+}
+.m3-player-card.is-fast-playback,
+.m3-player-card.is-extreme-playback {
+  --aura-glass-bg: inherit !important;
+  --aura-glass-blur: inherit !important;
+  --aura-glass-saturate: inherit !important;
+  --aura-glass-contrast: inherit !important;
+}
+
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  isolation: isolate;
+  color: rgba(255, 255, 255, .97);
+  background:
+    linear-gradient(142deg,
+      rgba(255, 255, 255, .115) 0%,
+      rgba(255, 255, 255, .025) 28%,
+      rgba(255, 255, 255, .012) 57%,
+      rgba(255, 255, 255, .075) 100%),
+    radial-gradient(120% 95% at 0% 0%, rgba(169, 211, 255, .10), transparent 62%),
+    radial-gradient(110% 90% at 100% 100%, rgba(195, 157, 255, .085), transparent 64%),
+    var(--aura-glass-bg) !important;
+  background-blend-mode: screen, screen, screen, normal;
+  background-clip: padding-box;
+  border: 1px solid var(--aura-glass-border) !important;
+  box-shadow: var(--aura-glass-shadow) !important;
+  -webkit-backdrop-filter:
+    blur(var(--aura-glass-blur))
+    saturate(var(--aura-glass-saturate))
+    contrast(var(--aura-glass-contrast))
+    brightness(1.07) !important;
+  backdrop-filter:
+    blur(var(--aura-glass-blur))
+    saturate(var(--aura-glass-saturate))
+    contrast(var(--aura-glass-contrast))
+    brightness(1.07) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .26);
+}
+
+/* Wide top reflection: creates a visible light sweep over the translucent
+   surface instead of relying on blur alone. */
+.subtitle-menu::before,
+.speed-menu::before,
+.player-context-menu::before,
+.player-keyboard-help::before,
+.player-drawer-overlay::before,
+.player-osd::before,
+.player-status::before,
+.seek-tooltip::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg,
+      rgba(255, 255, 255, .27) 0%,
+      rgba(255, 255, 255, .075) 15%,
+      transparent 38%,
+      rgba(255, 255, 255, .035) 72%,
+      rgba(255, 255, 255, .14) 100%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .14) 0%,
+      rgba(255, 255, 255, .025) 24%,
+      transparent 55%);
+  opacity: .9;
+}
+
+.subtitle-menu::after,
+.speed-menu::after,
+.player-context-menu::after,
+.player-keyboard-help::after,
+.player-drawer-overlay::after,
+.player-osd::after,
+.player-status::after,
+.seek-tooltip::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 1px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .34),
+    inset 1px 0 0 rgba(255, 255, 255, .10),
+    inset 0 -18px 32px rgba(5, 8, 20, .075);
+}
+
+/* Content stays above the reflection sheet; the sheet never blocks input. */
+.subtitle-menu > *,
+.speed-menu > *,
+.player-context-menu > *,
+.player-keyboard-help > *,
+.player-drawer-overlay > *,
+.player-osd > *,
+.player-status > *,
+.seek-tooltip > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Inner panes are also translucent, not flat opaque cards. */
+.player-context-section,
+.player-context-item,
+.player-context-help-button,
+.player-help-group,
+.player-help-search,
+.speed-input-wrap,
+.drawer-v-item,
+.subtitle-upload,
+.subtitle-file,
+.subtitle-option,
+.menu-header button,
+.speed-header button,
+.player-help-header button,
+.speed-preset,
+.subtitle-track-option {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.095), rgba(255,255,255,.025)),
+    var(--aura-glass-card-bg) !important;
+  border: 1px solid var(--aura-glass-card-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.19),
+    0 4px 16px rgba(0,0,0,.09) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(155%);
+  backdrop-filter: blur(12px) saturate(155%);
+}
+
+.player-context-item:hover,
+.player-context-help-button:hover,
+.drawer-v-item:hover,
+.menu-header button:hover,
+.speed-header button:hover,
+.player-help-header button:hover {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.17), rgba(255,255,255,.055)),
+    rgba(255,255,255,.075) !important;
+  border-color: rgba(255,255,255,.34) !important;
+}
+
+.player-context-item[aria-pressed="true"],
+.player-context-item:active,
+.drawer-v-item.active {
+  background:
+    linear-gradient(145deg, rgba(211,190,255,.20), rgba(173,198,255,.07)),
+    rgba(145,116,210,.10) !important;
+  border-color: rgba(224,207,255,.42) !important;
+}
+
+.player-context-item kbd,
+.player-help-row kbd,
+.player-context-help-button kbd {
+  background: rgba(255,255,255,.105) !important;
+  border: 1px solid rgba(255,255,255,.25) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.23), 0 2px 8px rgba(0,0,0,.12);
+}
+
+@media (max-width: 640px) {
+  :root {
+    --aura-glass-blur: 25px;
+    --aura-glass-saturate: 180%;
+    --aura-glass-shadow:
+      0 22px 56px rgba(0,0,0,.37),
+      0 6px 18px rgba(0,0,0,.14),
+      inset 0 1px 0 rgba(255,255,255,.43),
+      inset 1px 0 0 rgba(255,255,255,.15),
+      inset 0 -1px 0 rgba(255,255,255,.11);
+  }
+  html.aura-fast-playback { --aura-glass-blur: 19px; }
+  html.aura-extreme-playback { --aura-glass-blur: 15px; }
+}
+
+/* If the OS asks for reduced transparency, keep a safer, less transparent
+   material without collapsing all the way to the previous opaque panel. */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --aura-glass-bg: rgba(18, 21, 33, .42); --aura-glass-blur: 14px; }
+  html.aura-fast-playback { --aura-glass-bg: rgba(18, 21, 33, .45); --aura-glass-blur: 12px; }
+  html.aura-extreme-playback { --aura-glass-bg: rgba(18, 21, 33, .48); --aura-glass-blur: 10px; }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subtitle-menu,
+  .speed-menu,
+  .player-context-menu,
+  .player-keyboard-help,
+  .player-drawer-overlay,
+  .player-osd,
+  .player-status,
+  .seek-tooltip {
+    background: rgba(23, 25, 37, .92) !important;
+  }
+}
+
+/* =========================================================
+   AURA 2.2.0 — REFINED GLASS + QUIET NEUTRAL UI
+   One panel edge only; restrained text/accent palette; no nested frames.
+========================================================= */
+:root {
+  --aura-glass-bg: rgba(25, 27, 36, .64);
+  --aura-glass-border: rgba(229, 232, 240, .20);
+  --aura-glass-blur: 26px;
+  --aura-glass-saturate: 145%;
+  --aura-glass-contrast: 104%;
+  --aura-glass-shadow: 0 24px 70px rgba(0,0,0,.34), 0 5px 18px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.20);
+  --aura-text-primary: #E8E9EE;
+  --aura-text-secondary: #B8BBC5;
+  --aura-text-muted: #969BA8;
+  --aura-accent: #B7A6D5;
+  --aura-accent-soft: rgba(183,166,213,.16);
+  --aura-pane: rgba(255,255,255,.055);
+  --aura-pane-hover: rgba(255,255,255,.095);
+  --aura-pane-border: rgba(230,233,241,.105);
+}
+
+html.aura-fast-playback {
+  --aura-glass-bg: rgba(25,27,36,.68);
+  --aura-glass-blur: 19px;
+  --aura-glass-saturate: 138%;
+}
+html.aura-extreme-playback {
+  --aura-glass-bg: rgba(25,27,36,.72);
+  --aura-glass-blur: 15px;
+  --aura-glass-saturate: 132%;
+}
+
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay {
+  color: var(--aura-text-primary) !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.025) 48%, rgba(255,255,255,.045)),
+    var(--aura-glass-bg) !important;
+  border: 1px solid var(--aura-glass-border) !important;
+  box-shadow: var(--aura-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) !important;
+  backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) !important;
+  text-shadow: none !important;
+}
+
+/* A single soft reflection. The former ::after inset frame is removed. */
+.subtitle-menu::before,
+.speed-menu::before,
+.player-context-menu::before,
+.player-keyboard-help::before,
+.player-drawer-overlay::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(118deg, rgba(255,255,255,.13), transparent 34%, rgba(255,255,255,.025) 72%, rgba(255,255,255,.07));
+  opacity: .72;
+}
+.subtitle-menu::after,
+.speed-menu::after,
+.player-context-menu::after,
+.player-keyboard-help::after,
+.player-drawer-overlay::after { content: none !important; }
+
+.subtitle-menu > *,
+.speed-menu > *,
+.player-context-menu > *,
+.player-keyboard-help > *,
+.player-drawer-overlay > * { position: relative; z-index: 1; }
+
+/* Remove nested card frames: hierarchy is created with spacing and separators. */
+.player-context-section,
+.player-context-item,
+.player-context-help-button,
+.player-help-group,
+.player-help-search,
+.speed-input-wrap,
+.drawer-v-item,
+.subtitle-upload,
+.subtitle-file,
+.subtitle-option,
+.embedded-subtitle-track,
+.speed-preset,
+.subtitle-track-option {
+  color: var(--aura-text-primary);
+  background: var(--aura-pane) !important;
+  border: 1px solid var(--aura-pane-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09) !important;
+}
+.player-context-item:hover,
+.player-context-help-button:hover,
+.drawer-v-item:hover,
+.embedded-subtitle-track:hover,
+.subtitle-upload:hover {
+  background: var(--aura-pane-hover) !important;
+  border-color: rgba(230,233,241,.17) !important;
+}
+.player-context-item[aria-pressed="true"],
+.player-context-item:active,
+.drawer-v-item.active,
+.embedded-subtitle-track.active {
+  color: #F0ECF7 !important;
+  background: var(--aura-accent-soft) !important;
+  border-color: rgba(183,166,213,.34) !important;
+}
+.player-context-label,
+.player-context-heading strong,
+.player-help-header strong,
+.speed-header strong,
+.menu-header strong,
+.subtitle-file-info strong { color: var(--aura-text-primary) !important; }
+.player-context-heading small,
+.player-context-eyebrow,
+.player-help-row,
+.speed-header span,
+.menu-header span,
+.subtitle-file-info span,
+.embedded-subtitle-message,
+.embedded-subtitle-track-state,
+.option-label { color: var(--aura-text-secondary) !important; }
+.player-context-item kbd,
+.player-help-row kbd,
+.player-context-help-button kbd {
+  color: #D5D6DD !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(230,233,241,.13) !important;
+  box-shadow: none !important;
+}
+
+/* Speed panel: clear hierarchy, a single numeric focal point and one input surface. */
+.speed-menu {
+  width: min(344px, calc(100vw - 28px)) !important;
+  min-width: 0 !important;
+  padding: 18px !important;
+  border-radius: 20px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.speed-header { align-items: center; margin: 0 !important; padding-bottom: 12px; border-bottom: 1px solid rgba(230,233,241,.11); }
+.speed-header div { gap: 4px !important; }
+.speed-header span { font-size: 11px !important; letter-spacing: .01em; }
+.speed-header strong { font-size: 15px !important; font-weight: 650 !important; }
+.speed-header button,
+.menu-header button { width: 34px !important; height: 34px !important; border-radius: 11px !important; color: var(--aura-text-secondary) !important; }
+.speed-current { width: 100%; padding: 5px 0 0 !important; align-items: baseline; gap: 5px; }
+.speed-current span { color: #F0EEF4 !important; font-size: 38px !important; font-weight: 620 !important; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+.speed-current small { color: var(--aura-text-secondary) !important; font-size: 15px !important; }
+.speed-input-wrap { height: 46px !important; margin: 0 !important; border-radius: 12px !important; padding-inline: 14px !important; }
+.speed-input-wrap input { color: var(--aura-text-primary) !important; font-size: 15px !important; font-weight: 600 !important; }
+.speed-input-wrap span { color: var(--aura-text-muted) !important; }
+.speed-range { padding: 2px 3px 0; }
+.speed-range input,
+.setting-range { width: 100%; accent-color: var(--aura-accent); cursor: pointer; }
+.speed-limits { margin: -5px 2px 0 !important; color: var(--aura-text-muted) !important; font-size: 10px !important; }
+.apply-speed { min-height: 44px !important; height: auto !important; margin-top: 2px; color: #F0ECF6 !important; background: rgba(183,166,213,.22) !important; border: 1px solid rgba(183,166,213,.30) !important; border-radius: 12px !important; font-size: 13px !important; font-weight: 600 !important; }
+.apply-speed:hover { background: rgba(183,166,213,.30) !important; }
+
+/* Subtitle panel: grouped controls without a box-inside-a-box appearance. */
+.subtitle-menu {
+  width: min(376px, calc(100vw - 28px)) !important;
+  min-width: 0 !important;
+  padding: 17px !important;
+  border-radius: 20px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.subtitle-menu .menu-header { align-items: center; margin: 0 0 2px !important; padding-bottom: 12px; border-bottom: 1px solid rgba(230,233,241,.11); }
+.subtitle-menu .menu-header div { gap: 4px !important; }
+.subtitle-menu .menu-header span { font-size: 11px !important; }
+.subtitle-menu .menu-header strong { font-size: 15px !important; font-weight: 650 !important; }
+.subtitle-upload { min-height: 44px !important; justify-content: center; border-radius: 11px !important; color: #E9E6EF !important; background: rgba(183,166,213,.15) !important; border-color: rgba(183,166,213,.25) !important; font-size: 12px !important; font-weight: 600 !important; }
+.subtitle-file { min-height: 58px !important; margin: 0 !important; padding: 9px 10px !important; gap: 10px !important; border-radius: 11px !important; }
+.subtitle-file-icon { width: 34px !important; height: 34px !important; flex-basis: 34px !important; border-radius: 9px !important; color: #E4DDEE !important; background: rgba(183,166,213,.15) !important; font-size: 9px !important; }
+.subtitle-file-info { gap: 4px !important; }
+.subtitle-file-info strong { font-size: 12px !important; }
+.subtitle-file-info span { font-size: 10px !important; }
+#removeSubtitle { width: 30px; height: 30px; border-radius: 9px; color: var(--aura-text-secondary) !important; }
+.subtitle-option { padding: 10px 0 0 !important; margin: 0 !important; background: transparent !important; border: 0 !important; border-top: 1px solid rgba(230,233,241,.09) !important; box-shadow: none !important; }
+.subtitle-option .option-label { min-height: 30px; font-size: 12px !important; }
+.option-label strong { color: var(--aura-text-primary) !important; font-size: 11px; font-variant-numeric: tabular-nums; }
+.subtitle-option .switch { flex: 0 0 auto; }
+.embedded-subtitle-section { margin: 0 !important; padding: 11px 0 0 !important; border-top: 1px solid rgba(230,233,241,.10) !important; }
+.embedded-subtitle-section .option-label { font-size: 11px !important; font-weight: 600; }
+.embedded-subtitle-tracks { gap: 6px !important; max-height: 160px !important; }
+.embedded-subtitle-track { min-height: 40px !important; padding: 8px 10px !important; border-radius: 9px !important; font-size: 11px !important; }
+
+@media (max-width: 640px) {
+  .speed-menu, .subtitle-menu { width: min(380px, calc(100vw - 20px)) !important; max-width: calc(100vw - 20px) !important; padding: 15px !important; max-height: min(82dvh, 680px) !important; }
+  .speed-current span { font-size: 34px !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --aura-glass-bg: rgba(28,29,37,.91); }
+}
+
+
+/* =========================================================
+   AURA 2.2.1 — SINGLE-SURFACE POPUPS
+   The glass panel is the only framed surface. Menus inside it are
+   expressed through spacing, type, separators and quiet hover states.
+========================================================= */
+:root {
+  --aura-glass-bg: rgba(27, 29, 38, .68);
+  --aura-glass-border: rgba(232, 235, 242, .19);
+  --aura-glass-blur: 26px;
+  --aura-glass-saturate: 142%;
+  --aura-text-primary: #E8E9EE;
+  --aura-text-secondary: #B8BBC5;
+  --aura-text-muted: #969BA8;
+  --aura-accent: #B7A6D5;
+  --aura-accent-soft: rgba(183,166,213,.13);
+  --aura-divider: rgba(232,235,242,.105);
+}
+
+/* Quick context menu: one glass panel, no mini-panels around every command. */
+.player-context-menu {
+  color: var(--aura-text-primary) !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.018) 52%, rgba(255,255,255,.045)),
+    var(--aura-glass-bg) !important;
+  border: 1px solid var(--aura-glass-border) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.18) !important;
+  -webkit-backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) !important;
+  backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) !important;
+}
+.player-context-menu::after { content: none !important; }
+.player-context-menu .player-context-header { border-bottom: 1px solid var(--aura-divider); }
+.player-context-menu .player-context-heading strong { color: var(--aura-text-primary) !important; font-weight: 650; }
+.player-context-menu .player-context-heading small,
+.player-context-menu .player-context-status { color: var(--aura-text-secondary) !important; }
+.player-context-menu .player-context-eyebrow { color: #C4B7D9 !important; }
+.player-context-menu .player-context-status,
+.player-context-menu .player-context-speed-status {
+  min-height: 20px;
+  padding: 2px 0;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.player-context-menu .player-context-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 8px;
+  padding-top: 9px;
+}
+.player-context-menu .player-context-item,
+.player-context-menu .player-context-item[data-variant="primary"],
+.player-context-menu .player-context-item[data-variant="wide"] {
+  display: grid;
+  grid-template-columns: 25px minmax(0,1fr) auto;
+  grid-template-rows: minmax(42px, auto);
+  grid-template-areas: "icon label key";
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 8px;
+  color: var(--aura-text-primary) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 9px;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: background-color .14s ease, color .14s ease;
+}
+.player-context-menu .player-context-item[data-variant="primary"],
+.player-context-menu .player-context-item[data-variant="wide"] { grid-column: 1 / -1; }
+.player-context-menu .player-context-item:hover {
+  background: rgba(255,255,255,.065) !important;
+  border: 0 !important;
+}
+.player-context-menu .player-context-item:active,
+.player-context-menu .player-context-item[aria-pressed="true"] {
+  background: var(--aura-accent-soft) !important;
+  border: 0 !important;
+  box-shadow: inset -2px 0 0 rgba(183,166,213,.72) !important;
+}
+.player-context-menu .player-context-item:focus-visible {
+  outline: 2px solid rgba(183,166,213,.65);
+  outline-offset: -2px;
+}
+.player-context-menu .player-context-icon {
+  grid-area: icon;
+  width: 22px;
+  height: 22px;
+  padding: 1px;
+  color: #C8BDD9;
+  fill: currentColor;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+.player-context-menu .player-context-label {
+  color: var(--aura-text-primary) !important;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.player-context-menu .player-context-item kbd {
+  min-width: 30px;
+  min-height: 21px;
+  padding: 2px 6px;
+  color: #C9C8D0 !important;
+  background: rgba(255,255,255,.065) !important;
+  border: 1px solid rgba(232,235,242,.105) !important;
+  border-radius: 6px;
+  box-shadow: none !important;
+}
+.player-context-menu .player-context-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--aura-divider);
+}
+.player-context-menu .player-context-help-button {
+  min-height: 40px;
+  color: var(--aura-text-secondary) !important;
+  background: rgba(255,255,255,.045) !important;
+  border: 0 !important;
+  border-radius: 9px;
+  box-shadow: none !important;
+}
+.player-context-menu .player-context-help-button:hover { background: rgba(255,255,255,.085) !important; }
+
+/* Subtitle menu: flatten file/track cards; use sections and separators, not boxes. */
+.subtitle-menu {
+  color: var(--aura-text-primary) !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.018) 52%, rgba(255,255,255,.045)),
+    var(--aura-glass-bg) !important;
+  border: 1px solid var(--aura-glass-border) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.18) !important;
+  -webkit-backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) !important;
+  backdrop-filter: blur(var(--aura-glass-blur)) saturate(var(--aura-glass-saturate)) !important;
+}
+.subtitle-menu::after { content: none !important; }
+.subtitle-menu .menu-header {
+  margin: 0 !important;
+  padding: 0 0 12px !important;
+  border-bottom: 1px solid var(--aura-divider) !important;
+}
+.subtitle-menu .menu-header strong { color: var(--aura-text-primary) !important; font-size: 15px !important; font-weight: 650 !important; }
+.subtitle-menu .menu-header span { color: var(--aura-text-secondary) !important; font-size: 11px !important; }
+.subtitle-menu .menu-header button {
+  width: 32px !important;
+  height: 32px !important;
+  color: var(--aura-text-secondary) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-upload {
+  min-height: 42px !important;
+  margin-top: 2px;
+  color: #E7E3ED !important;
+  background: rgba(183,166,213,.14) !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.subtitle-menu .subtitle-upload:hover { background: rgba(183,166,213,.21) !important; }
+.subtitle-menu .subtitle-file {
+  display: flex;
+  align-items: center;
+  min-height: 54px !important;
+  margin: 0 !important;
+  padding: 9px 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--aura-divider) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-file-icon {
+  width: 30px !important;
+  height: 30px !important;
+  flex: 0 0 30px !important;
+  color: #C8BDD9 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-size: 10px !important;
+}
+.subtitle-menu .subtitle-file-info strong { color: var(--aura-text-primary) !important; font-size: 12px !important; }
+.subtitle-menu .subtitle-file-info span { color: var(--aura-text-secondary) !important; font-size: 10px !important; }
+.subtitle-menu #removeSubtitle { color: var(--aura-text-secondary) !important; background: transparent !important; border: 0 !important; }
+.subtitle-menu .subtitle-option {
+  margin: 0 !important;
+  padding: 11px 1px 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-top: 1px solid var(--aura-divider) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-option:first-of-type { border-top: 0 !important; }
+.subtitle-menu .option-label { min-height: 28px; color: var(--aura-text-secondary) !important; font-size: 12px !important; }
+.subtitle-menu .option-label strong { color: var(--aura-text-primary) !important; font-size: 11px !important; font-weight: 600; }
+.subtitle-menu .embedded-subtitle-section {
+  margin: 0 !important;
+  padding: 11px 0 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--aura-divider) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .embedded-subtitle-track {
+  min-height: 38px !important;
+  padding: 8px 4px !important;
+  color: var(--aura-text-secondary) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid rgba(232,235,242,.07) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .embedded-subtitle-track:last-child { border-bottom: 0 !important; }
+.subtitle-menu .embedded-subtitle-track.active {
+  color: var(--aura-text-primary) !important;
+  background: rgba(183,166,213,.10) !important;
+  box-shadow: inset -2px 0 0 rgba(183,166,213,.68) !important;
+}
+.subtitle-menu .setting-range { accent-color: var(--aura-accent); }
+.subtitle-menu .switch { box-shadow: none; }
+
+/* Speed input stays recognizably editable without becoming a second panel. */
+.speed-menu .speed-input-wrap {
+  background: rgba(255,255,255,.045) !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(232,235,242,.22) !important;
+  border-radius: 8px 8px 5px 5px !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.speed-menu .speed-input-wrap:focus-within { border-bottom-color: rgba(183,166,213,.75) !important; }
+
+@media (max-width: 640px) {
+  .player-context-menu .player-context-actions { grid-template-columns: minmax(0,1fr); gap: 1px; }
+  .player-context-menu .player-context-item,
+  .player-context-menu .player-context-item[data-variant="primary"],
+  .player-context-menu .player-context-item[data-variant="wide"] {
+    grid-column: 1;
+    min-height: 44px;
+    padding-inline: 6px;
+  }
+  .subtitle-menu .subtitle-file { min-height: 50px !important; }
+}
+
+/* =========================================================
+   AURA 2.2.2 — SUBTITLE PANEL REDESIGN
+   One glass surface; clear source / display / appearance groups.
+========================================================= */
+.subtitle-menu {
+  --subtitle-ink: #ECECF1;
+  --subtitle-muted: #B8BBC6;
+  --subtitle-soft: #9298A6;
+  --subtitle-line: rgba(235,238,246,.105);
+  width: min(390px, calc(100vw - 28px)) !important;
+  max-width: calc(100vw - 28px) !important;
+  max-height: min(82dvh, 720px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(220,222,232,.24) transparent;
+  padding: 19px 20px 18px !important;
+  gap: 0 !important;
+  color: var(--subtitle-ink) !important;
+}
+.subtitle-menu::-webkit-scrollbar { width: 5px; }
+.subtitle-menu::-webkit-scrollbar-thumb { background: rgba(220,222,232,.22); border-radius: 8px; }
+.subtitle-menu .subtitle-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 17px !important;
+  padding: 0 0 15px !important;
+  border-bottom: 1px solid var(--subtitle-line) !important;
+}
+.subtitle-menu .subtitle-panel-header div { display: flex; flex-direction: column; gap: 5px !important; }
+.subtitle-menu .subtitle-panel-header span {
+  color: #B7A9CC !important;
+  font-size: 9px !important;
+  font-weight: 650 !important;
+  letter-spacing: .105em;
+  direction: ltr;
+  text-align: right;
+}
+.subtitle-menu .subtitle-panel-header strong {
+  color: var(--subtitle-ink) !important;
+  font-size: 16px !important;
+  line-height: 1.45;
+  font-weight: 650 !important;
+}
+.subtitle-menu .subtitle-panel-header button {
+  width: 32px !important;
+  height: 32px !important;
+  display: grid;
+  place-items: center;
+  border-radius: 50% !important;
+  color: #C5C6CE !important;
+  background: rgba(255,255,255,.055) !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  font-size: 19px;
+}
+.subtitle-source-group,
+.subtitle-settings-group { min-width: 0; }
+.subtitle-section-heading {
+  margin: 0 0 9px;
+  color: #C6C1D0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .01em;
+}
+.subtitle-upload {
+  width: 100%;
+  min-height: 48px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 10px;
+  padding: 0 12px !important;
+  color: #E8E5EE !important;
+  background: linear-gradient(110deg, rgba(183,166,213,.17), rgba(255,255,255,.055)) !important;
+  border: 1px solid rgba(199,184,222,.19) !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07) !important;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.subtitle-upload:hover {
+  background: linear-gradient(110deg, rgba(183,166,213,.23), rgba(255,255,255,.075)) !important;
+  border-color: rgba(199,184,222,.30) !important;
+}
+.subtitle-upload:active { transform: translateY(1px); }
+.subtitle-upload-mark {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 25px;
+  border-radius: 8px;
+  color: #D9CDE9;
+  background: rgba(183,166,213,.16);
+  font-size: 17px;
+  line-height: 1;
+}
+.subtitle-upload-format {
+  margin-inline-start: auto;
+  color: #A9A6B2;
+  font-size: 9px;
+  font-weight: 550;
+  direction: ltr;
+  white-space: nowrap;
+}
+.subtitle-menu .subtitle-file {
+  min-height: 53px !important;
+  display: flex;
+  align-items: center;
+  gap: 10px !important;
+  margin: 5px 0 0 !important;
+  padding: 8px 1px 10px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--subtitle-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-file-icon {
+  width: 32px !important;
+  height: 32px !important;
+  flex: 0 0 32px !important;
+  display: grid;
+  place-items: center;
+  border-radius: 9px !important;
+  color: #D6CBE5 !important;
+  background: rgba(183,166,213,.11) !important;
+  font-size: 9px !important;
+  font-weight: 700;
+}
+.subtitle-menu .subtitle-file-info { min-width: 0; gap: 3px !important; }
+.subtitle-menu .subtitle-file-info strong {
+  max-width: 260px;
+  overflow: hidden;
+  color: var(--subtitle-ink) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subtitle-menu .subtitle-file-info span { color: var(--subtitle-soft) !important; font-size: 10px !important; }
+.subtitle-menu #removeSubtitle {
+  width: 29px;
+  height: 29px;
+  flex: 0 0 29px;
+  margin-inline-start: auto;
+  border-radius: 8px;
+  color: #B9B7C1 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+.subtitle-menu #removeSubtitle:hover { color: #E6B9BC !important; background: rgba(220,130,140,.10) !important; }
+.subtitle-settings-group {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--subtitle-line);
+}
+.subtitle-settings-group .subtitle-section-heading { margin-bottom: 7px; }
+.subtitle-menu .subtitle-option {
+  margin: 0 !important;
+  padding: 9px 1px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-switch-row + .subtitle-switch-row { border-top: 1px solid rgba(235,238,246,.065) !important; }
+.subtitle-menu .subtitle-option .option-label {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--subtitle-muted) !important;
+  font-size: 11px !important;
+  font-weight: 520;
+}
+.subtitle-menu .subtitle-option .option-label strong {
+  color: #DCD9E3 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  font-variant-numeric: tabular-nums;
+}
+.subtitle-menu .switch {
+  width: 40px !important;
+  height: 23px !important;
+  padding: 2px !important;
+  background: rgba(255,255,255,.10) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  border-radius: 999px !important;
+}
+.subtitle-menu .switch span { width: 17px !important; height: 17px !important; background: #B8BAC3 !important; }
+.subtitle-menu .switch.active { background: rgba(177,157,207,.65) !important; border-color: rgba(202,185,226,.58) !important; }
+.subtitle-menu .switch.active span { background: #F4F0F8 !important; }
+.subtitle-menu .subtitle-range-row { padding: 10px 1px 11px !important; }
+.subtitle-menu .subtitle-range-row .option-label { margin-bottom: 8px; }
+.subtitle-menu .setting-range {
+  width: 100%;
+  height: 5px !important;
+  margin: 0 !important;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, rgba(183,166,213,.78), rgba(255,255,255,.20)) !important;
+  accent-color: #C5B4DD;
+  cursor: pointer;
+  direction: ltr;
+}
+.subtitle-menu .setting-range::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid #EAE4F2;
+  border-radius: 50%;
+  background: #B7A6D5;
+  box-shadow: 0 1px 5px rgba(0,0,0,.35);
+}
+.subtitle-menu .setting-range::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #EAE4F2;
+  border-radius: 50%;
+  background: #B7A6D5;
+  box-shadow: 0 1px 5px rgba(0,0,0,.35);
+}
+.subtitle-range-hints {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: #9297A3;
+  font-size: 9px;
+}
+.subtitle-menu .embedded-subtitle-section {
+  margin: 10px 0 0 !important;
+  padding: 11px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--subtitle-line) !important;
+  background: transparent !important;
+}
+.subtitle-menu .embedded-subtitle-section .option-label { margin-bottom: 5px; }
+.subtitle-menu .embedded-subtitle-track {
+  min-height: 37px !important;
+  padding: 7px 5px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(235,238,246,.06) !important;
+  border-radius: 7px !important;
+  color: var(--subtitle-muted) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .embedded-subtitle-track.active {
+  color: var(--subtitle-ink) !important;
+  background: rgba(183,166,213,.10) !important;
+  box-shadow: inset -2px 0 0 rgba(183,166,213,.72) !important;
+}
+@media (max-width: 640px) {
+  .subtitle-menu {
+    width: min(390px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: min(78dvh, 650px) !important;
+    padding: 16px 15px 14px !important;
+    border-radius: 18px !important;
+  }
+  .subtitle-menu .subtitle-panel-header { margin-bottom: 13px !important; padding-bottom: 12px !important; }
+  .subtitle-menu .subtitle-upload { min-height: 46px !important; }
+  .subtitle-menu .subtitle-settings-group { margin-top: 13px; padding-top: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .subtitle-menu *, .subtitle-menu *::before, .subtitle-menu *::after { transition-duration: .01ms !important; }
+}
+
+/* =========================================================
+   AURA 2.2.3 — SUBTITLE PANEL: SINGLE-SURFACE REFINEMENT
+   One outer glass shell. Internal hierarchy is built with spacing,
+   typography and separators — never nested bordered cards.
+========================================================= */
+.subtitle-menu {
+  --subtitle-text: #E7E7EC;
+  --subtitle-muted: #B4B5BF;
+  --subtitle-dim: #9295A1;
+  --subtitle-separator: rgba(235, 237, 244, .12);
+  --subtitle-accent: #B9A9D2;
+  width: min(372px, calc(100vw - 28px)) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 28px) !important;
+  max-height: min(78dvh, 660px) !important;
+  padding: 18px 19px 17px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border: 1px solid rgba(238, 237, 246, .25) !important;
+  border-radius: 20px !important;
+  color: var(--subtitle-text) !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.018) 46%, rgba(255,255,255,.045)),
+    rgba(27, 25, 34, .79) !important;
+  box-shadow: 0 22px 60px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.19) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(220,222,232,.22) transparent;
+}
+/* The old global glass ::after created a second inset frame. */
+.subtitle-menu::after { content: none !important; display: none !important; }
+.subtitle-menu::before {
+  inset: 0 !important;
+  border-radius: inherit !important;
+  opacity: .42 !important;
+  background: linear-gradient(118deg, rgba(255,255,255,.12), transparent 35%, transparent 72%, rgba(255,255,255,.045)) !important;
+}
+.subtitle-menu > * { position: relative; }
+.subtitle-menu .subtitle-panel-header {
+  min-height: 43px;
+  margin: 0 0 15px !important;
+  padding: 0 0 13px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--subtitle-separator) !important;
+}
+.subtitle-menu .subtitle-panel-header span {
+  color: #B9ADC9 !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  letter-spacing: .09em;
+}
+.subtitle-menu .subtitle-panel-header strong {
+  color: var(--subtitle-text) !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  line-height: 1.5;
+}
+.subtitle-menu .subtitle-panel-header button {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  color: #D0CED7 !important;
+  background: rgba(255,255,255,.075) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-source-group,
+.subtitle-menu .subtitle-settings-group { min-width: 0; }
+.subtitle-menu .subtitle-section-heading {
+  margin: 0 0 8px !important;
+  color: #C5C1CD !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+/* Upload is a single quiet action, not a bordered card inside the panel. */
+.subtitle-menu .subtitle-upload {
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  padding: 0 11px !important;
+  border: 0 !important;
+  border-radius: 11px !important;
+  color: #E2DCEB !important;
+  background: rgba(183,166,213,.13) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07) !important;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+}
+.subtitle-menu .subtitle-upload:hover { background: rgba(183,166,213,.19) !important; }
+.subtitle-menu .subtitle-upload-mark {
+  width: 25px; height: 25px; flex: 0 0 25px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: #D9CDE8;
+  background: rgba(255,255,255,.085);
+}
+.subtitle-menu .subtitle-upload-format {
+  margin-inline-start: auto;
+  color: #A9A6B2 !important;
+  font-size: 9px !important;
+}
+/* File information is a plain metadata row, never another container. */
+.subtitle-menu .subtitle-file {
+  min-height: 48px !important;
+  margin: 5px 0 0 !important;
+  padding: 7px 1px 9px !important;
+  display: flex;
+  align-items: center;
+  gap: 9px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--subtitle-separator) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-file-icon {
+  width: 29px !important; height: 29px !important; flex: 0 0 29px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  color: #D6CBE4 !important;
+  background: rgba(183,166,213,.12) !important;
+}
+.subtitle-menu .subtitle-file-info { min-width: 0; gap: 3px !important; }
+.subtitle-menu .subtitle-file-info strong { color: var(--subtitle-text) !important; font-size: 11px !important; }
+.subtitle-menu .subtitle-file-info span { color: var(--subtitle-dim) !important; font-size: 10px !important; }
+.subtitle-menu #removeSubtitle {
+  width: 28px; height: 28px; flex: 0 0 28px;
+  margin-inline-start: auto;
+  border: 0 !important; border-radius: 8px !important;
+  color: var(--subtitle-muted) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subtitle-menu #removeSubtitle:hover { color: #E4B9BE !important; background: rgba(220,130,140,.09) !important; }
+/* Sections use whitespace and one separator between groups. */
+.subtitle-menu .subtitle-settings-group {
+  margin: 13px 0 0 !important;
+  padding: 12px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--subtitle-separator) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-settings-group .subtitle-section-heading { margin-bottom: 5px !important; }
+.subtitle-menu .subtitle-option {
+  margin: 0 !important;
+  padding: 8px 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-switch-row + .subtitle-switch-row {
+  border-top: 1px solid rgba(235,237,244,.065) !important;
+}
+.subtitle-menu .subtitle-option .option-label {
+  min-height: 31px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  color: var(--subtitle-muted) !important;
+  font-size: 11px !important;
+  line-height: 1.5;
+}
+.subtitle-menu .subtitle-option .option-label strong {
+  color: var(--subtitle-text) !important;
+  font-size: 11px !important;
+  font-variant-numeric: tabular-nums;
+}
+.subtitle-menu .switch {
+  flex: 0 0 39px;
+  width: 39px !important; height: 22px !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.09) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .switch span { width: 16px !important; height: 16px !important; background: #BFC0C8 !important; }
+.subtitle-menu .switch.active { border-color: rgba(190,174,215,.42) !important; background: rgba(177,157,207,.53) !important; }
+.subtitle-menu .switch.active span { background: #F0ECF5 !important; }
+.subtitle-menu .subtitle-range-row { padding: 9px 0 10px !important; }
+.subtitle-menu .subtitle-range-row .option-label { margin-bottom: 7px; }
+.subtitle-menu .setting-range {
+  width: 100%; height: 5px !important; margin: 0 !important;
+  appearance: none; -webkit-appearance: none;
+  border: 0 !important; border-radius: 99px;
+  background: linear-gradient(90deg, rgba(185,169,210,.78), rgba(255,255,255,.19)) !important;
+  cursor: pointer; direction: ltr;
+}
+.subtitle-menu .setting-range::-webkit-slider-thumb {
+  width: 14px; height: 14px; appearance: none; -webkit-appearance: none;
+  border: 2px solid #E9E3F0; border-radius: 50%; background: #B9A9D2;
+  box-shadow: 0 1px 5px rgba(0,0,0,.35);
+}
+.subtitle-menu .setting-range::-moz-range-thumb {
+  width: 11px; height: 11px; border: 2px solid #E9E3F0;
+  border-radius: 50%; background: #B9A9D2;
+}
+.subtitle-menu .subtitle-range-hints {
+  display: flex; justify-content: space-between; margin-top: 6px;
+  color: var(--subtitle-dim) !important; font-size: 9px !important;
+}
+/* Embedded tracks are flat selectable rows; selected state uses a slim marker. */
+.subtitle-menu .embedded-subtitle-section {
+  margin: 10px 0 0 !important; padding: 10px 0 0 !important;
+  border: 0 !important; border-top: 1px solid var(--subtitle-separator) !important;
+  border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+}
+.subtitle-menu .embedded-subtitle-tracks { display: grid; gap: 1px !important; max-height: 132px !important; margin-top: 5px; }
+.subtitle-menu .embedded-subtitle-track {
+  min-height: 36px !important; padding: 7px 8px !important;
+  border: 0 !important; border-radius: 6px !important;
+  color: var(--subtitle-muted) !important; background: transparent !important;
+  box-shadow: none !important; font-size: 11px !important;
+}
+.subtitle-menu .embedded-subtitle-track:hover { background: rgba(255,255,255,.055) !important; }
+.subtitle-menu .embedded-subtitle-track.active {
+  color: var(--subtitle-text) !important;
+  background: rgba(183,166,213,.10) !important;
+  box-shadow: inset -2px 0 0 rgba(185,169,210,.8) !important;
+}
+.subtitle-menu .embedded-subtitle-track-state,
+.subtitle-menu .embedded-subtitle-message { color: var(--subtitle-dim) !important; }
+@media (max-width: 640px) {
+  .subtitle-menu {
+    width: min(372px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: min(76dvh, 610px) !important;
+    padding: 15px 15px 14px !important;
+    border-radius: 17px !important;
+  }
+  .subtitle-menu .subtitle-panel-header { margin-bottom: 12px !important; padding-bottom: 11px !important; }
+  .subtitle-menu .subtitle-settings-group { margin-top: 11px !important; padding-top: 10px !important; }
+}
+
+/* =========================================================
+   AURA 2.2.4 — ORIGINAL-SHAPE GLASS POPUPS
+   Keep every 2.2.3 feature and behavior. Restore the compact
+   original popup proportions; use one glass shell per popup.
+========================================================= */
+.subtitle-menu,
+.speed-menu {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.105), rgba(255,255,255,.025) 48%, rgba(255,255,255,.055)),
+    rgba(18,20,28,.70) !important;
+  border: 1px solid rgba(255,255,255,.20) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.16) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+  isolation: isolate;
+}
+.subtitle-menu::before,
+.speed-menu::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: .35;
+  background: linear-gradient(120deg, rgba(255,255,255,.13), transparent 38%, transparent 75%, rgba(255,255,255,.035));
+}
+.subtitle-menu::after,
+.speed-menu::after { content: none !important; display: none !important; }
+.subtitle-menu > *,
+.speed-menu > * { position: relative; z-index: 1; }
+
+/* Subtitle: original compact 260px panel, with the expanded 2.2.3 controls. */
+.subtitle-menu {
+  --subtitle-text: #F0F1F5;
+  --subtitle-muted: #D0D2DA;
+  --subtitle-dim: #AEB3C0;
+  --subtitle-separator: rgba(235,237,244,.13);
+  --subtitle-accent: #D0BCFF;
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: min(260px, calc(100vw - 24px)) !important;
+  max-height: min(72vh, 560px) !important;
+  padding: 14px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  color: var(--subtitle-text) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(230,230,240,.24) transparent;
+}
+.subtitle-menu .subtitle-panel-header {
+  min-height: 0 !important;
+  margin: 0 0 12px !important;
+  padding: 0 0 10px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--subtitle-separator) !important;
+}
+.subtitle-menu .subtitle-panel-header div { gap: 3px !important; }
+.subtitle-menu .subtitle-panel-header span {
+  color: #BFC0CA !important;
+  font-size: 8px !important;
+  letter-spacing: 0 !important;
+}
+.subtitle-menu .subtitle-panel-header strong {
+  color: #F0F2F5 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+.subtitle-menu .subtitle-panel-header button {
+  width: 25px !important;
+  height: 25px !important;
+  color: #C5C8D0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  font-size: 18px !important;
+}
+.subtitle-menu .subtitle-source-group,
+.subtitle-menu .subtitle-settings-group {
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-settings-group {
+  margin-top: 10px !important;
+  padding-top: 9px !important;
+  border-top: 1px solid var(--subtitle-separator) !important;
+}
+.subtitle-menu .subtitle-section-heading {
+  margin: 0 0 7px !important;
+  color: #BFC2CC !important;
+  font-size: 9px !important;
+  font-weight: 650 !important;
+}
+.subtitle-menu .subtitle-upload {
+  min-height: 36px !important;
+  padding: 0 9px !important;
+  color: #171820 !important;
+  background: #F2F2F5 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+}
+.subtitle-menu .subtitle-upload:hover { background: #FFFFFF !important; }
+.subtitle-menu .subtitle-upload-mark { font-size: 15px !important; }
+.subtitle-menu .subtitle-upload-format { font-size: 8px !important; }
+.subtitle-menu .subtitle-file {
+  min-height: 38px !important;
+  margin: 7px 0 0 !important;
+  padding: 5px 0 !important;
+  gap: 7px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid rgba(235,237,244,.09) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-file-icon {
+  width: 25px !important;
+  height: 25px !important;
+  flex-basis: 25px !important;
+  color: #F2F2F5 !important;
+  background: rgba(255,255,255,.10) !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  font-size: 7px !important;
+}
+.subtitle-menu .subtitle-file-info strong { color: #E8EAF0 !important; font-size: 8.5px !important; }
+.subtitle-menu .subtitle-file-info span { color: #AEB3C0 !important; font-size: 7px !important; }
+.subtitle-menu #removeSubtitle { color: #BFC2CC !important; background: transparent !important; border: 0 !important; }
+.subtitle-menu .subtitle-option {
+  margin: 0 !important;
+  padding: 7px 0 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-switch-row + .subtitle-switch-row { border-top: 1px solid rgba(235,237,244,.07) !important; }
+.subtitle-menu .subtitle-option .option-label {
+  min-height: 25px !important;
+  color: #D9DCE3 !important;
+  font-size: 9px !important;
+  gap: 8px !important;
+}
+.subtitle-menu .subtitle-option .option-label strong { color: #F0F1F5 !important; font-size: 9px !important; }
+.subtitle-menu .switch {
+  width: 36px !important;
+  height: 20px !important;
+  flex-basis: 36px !important;
+  padding: 2px !important;
+  background: rgba(255,255,255,.10) !important;
+  border: 1px solid rgba(255,255,255,.17) !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .switch span { width: 14px !important; height: 14px !important; background: #BFC2CC !important; }
+.subtitle-menu .switch.active { background: rgba(208,188,255,.55) !important; border-color: rgba(208,188,255,.65) !important; }
+.subtitle-menu .switch.active span { background: #FFFFFF !important; }
+.subtitle-menu .subtitle-range-row { padding: 8px 0 7px !important; }
+.subtitle-menu .subtitle-range-row .option-label { margin-bottom: 6px !important; }
+.subtitle-menu .setting-range {
+  height: 4px !important;
+  margin: 5px 0 0 !important;
+  border: 0 !important;
+  border-radius: 20px !important;
+  background: rgba(255,255,255,.20) !important;
+  accent-color: #D0BCFF;
+}
+.subtitle-menu .setting-range::-webkit-slider-thumb {
+  width: 12px !important; height: 12px !important;
+  border: 0 !important; border-radius: 50% !important;
+  background: #D0BCFF !important; box-shadow: none !important;
+}
+.subtitle-menu .setting-range::-moz-range-thumb {
+  width: 12px !important; height: 12px !important;
+  border: 0 !important; border-radius: 50% !important; background: #D0BCFF !important;
+}
+.subtitle-menu .subtitle-range-hints { margin-top: 5px !important; color: #AEB3C0 !important; font-size: 8px !important; }
+.subtitle-menu .embedded-subtitle-section {
+  margin: 8px 0 0 !important;
+  padding: 8px 0 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--subtitle-separator) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .embedded-subtitle-section .option-label { margin-bottom: 4px !important; }
+.subtitle-menu .embedded-subtitle-tracks { max-height: 100px !important; margin-top: 4px !important; gap: 0 !important; }
+.subtitle-menu .embedded-subtitle-track {
+  min-height: 29px !important;
+  padding: 5px 4px !important;
+  color: #D0D2DA !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(235,237,244,.07) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 9px !important;
+}
+.subtitle-menu .embedded-subtitle-track.active {
+  color: #FFFFFF !important;
+  background: rgba(208,188,255,.10) !important;
+  box-shadow: inset -2px 0 0 rgba(208,188,255,.85) !important;
+}
+.subtitle-menu .embedded-subtitle-track-state,
+.subtitle-menu .embedded-subtitle-message { color: #AEB3C0 !important; font-size: 8px !important; }
+
+/* Speed: restore the original 250px panel and its simple control hierarchy. */
+.speed-menu {
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: min(250px, calc(100vw - 24px)) !important;
+  max-height: min(72vh, 560px) !important;
+  padding: 14px !important;
+  overflow-y: auto !important;
+  color: #F0F2F5 !important;
+  direction: ltr !important;
+  text-align: left !important;
+}
+.speed-menu .speed-header { margin-bottom: 10px !important; }
+.speed-menu .speed-header span { color: #BFC2CC !important; font-size: 8px !important; }
+.speed-menu .speed-header strong { color: #F0F2F5 !important; font-size: 11px !important; }
+.speed-menu .speed-header button { color: #C5C8D0 !important; background: transparent !important; border: 0 !important; }
+.speed-menu .speed-current { padding: 6px 0 10px !important; }
+.speed-menu .speed-current span { color: #FFFFFF !important; font-size: 26px !important; }
+.speed-menu .speed-current small { color: #BFC2CC !important; font-size: 10px !important; }
+.speed-menu .speed-input-wrap {
+  height: 40px !important;
+  margin: 0 0 12px !important;
+  padding: 0 12px !important;
+  background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.speed-menu .speed-input-wrap:focus-within { border-color: rgba(208,188,255,.65) !important; }
+.speed-menu .speed-input-wrap input { color: #FFFFFF !important; font-size: 14px !important; }
+.speed-menu .speed-input-wrap span,
+.speed-menu .speed-limits { color: #BFC2CC !important; font-size: 8px !important; }
+.speed-menu .speed-range input { accent-color: #D0BCFF !important; }
+.speed-menu .apply-speed {
+  height: 36px !important;
+  color: #171820 !important;
+  background: #F2F2F5 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  font-size: 10px !important;
+}
+.speed-menu .apply-speed:hover { background: #FFFFFF !important; }
+
+@media (max-width: 640px) {
+  .subtitle-menu { width: min(260px, calc(100vw - 20px)) !important; min-width: 0 !important; max-width: calc(100vw - 20px) !important; max-height: min(68dvh, 520px) !important; padding: 13px !important; border-radius: 15px !important; }
+  .speed-menu { width: min(250px, calc(100vw - 20px)) !important; min-width: 0 !important; max-width: calc(100vw - 20px) !important; max-height: min(68dvh, 520px) !important; padding: 13px !important; border-radius: 15px !important; }
+}
+@supports not ((backdrop-filter: blur(1px))) {
+  .subtitle-menu, .speed-menu { background: rgba(18,20,28,.94) !important; }
+}
+
+/* 2.2.5 — one-surface floating UI.
+   Floating windows keep their own glass shell; their contents are controls and
+   rows, not additional glass cards. */
+.player-context-section,
+.player-context-item,
+.player-context-help-button,
+.player-help-group,
+.player-help-search,
+.speed-input-wrap,
+.drawer-v-item,
+.subtitle-upload,
+.subtitle-file,
+.subtitle-option,
+.menu-header button,
+.speed-header button,
+.player-help-header button,
+.player-help-row,
+.embedded-subtitle-section,
+.embedded-subtitle-track {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.player-context-item:hover,
+.player-context-help-button:hover,
+.drawer-v-item:hover,
+.menu-header button:hover,
+.speed-header button:hover,
+.player-help-header button:hover,
+.embedded-subtitle-track:hover {
+  background-color: rgba(255, 255, 255, .085);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.player-context-item[aria-pressed="true"],
+.player-context-item:active,
+.drawer-v-item.active,
+.embedded-subtitle-track.active {
+  background-color: rgba(190, 157, 255, .16);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Keep the panel's single outer shell as the only structural frame. */
+.player-context-menu,
+.player-keyboard-help,
+.speed-menu,
+.subtitle-menu,
+.player-drawer-overlay {
+  isolation: isolate;
+}
+
+.player-context-menu > *,
+.player-keyboard-help > *,
+.speed-menu > *,
+.subtitle-menu > *,
+.player-drawer-overlay > * {
+  box-shadow: none;
+}
+
+
+/* =========================================================
+   AURA 2.2.6 — PLAYER-ANCHORED, REFINED FLOATING PANELS
+   One active overlay; compact, balanced controls; no nested cards.
+========================================================= */
+.subtitle-menu,
+.speed-menu {
+  box-sizing: border-box !important;
+  max-width: min(340px, calc(100vw - 24px)) !important;
+  max-height: min(76dvh, 620px) !important;
+  padding: 16px !important;
+  border-radius: 18px !important;
+  background: rgba(27, 25, 34, .76) !important;
+  border: 1px solid rgba(255,255,255,.22) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.13) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(155%) !important;
+  backdrop-filter: blur(24px) saturate(155%) !important;
+  transform-origin: center center !important;
+}
+
+.subtitle-menu {
+  width: min(340px, calc(100vw - 24px)) !important;
+  min-width: 0 !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.speed-menu {
+  width: min(300px, calc(100vw - 24px)) !important;
+  min-width: 0 !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.subtitle-menu .subtitle-panel-header,
+.speed-menu .speed-header {
+  min-height: 42px !important;
+  align-items: center !important;
+  margin: 0 0 13px !important;
+  padding: 0 0 12px !important;
+  border-bottom: 1px solid rgba(255,255,255,.13) !important;
+}
+
+.subtitle-menu .subtitle-panel-header strong,
+.speed-menu .speed-header strong {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  letter-spacing: -.15px !important;
+}
+
+.subtitle-menu .subtitle-panel-header span,
+.speed-menu .speed-header span {
+  font-size: 9px !important;
+  opacity: .72 !important;
+}
+
+.subtitle-menu .subtitle-panel-header button,
+.speed-menu .speed-header button {
+  display: grid !important;
+  place-items: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 10px !important;
+  color: rgba(255,255,255,.88) !important;
+  background: rgba(255,255,255,.09) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  font-size: 18px !important;
+}
+
+.subtitle-menu .subtitle-section-heading {
+  margin: 0 0 8px !important;
+  font-size: 10px !important;
+  color: rgba(255,255,255,.66) !important;
+}
+
+.subtitle-menu .subtitle-upload {
+  min-height: 40px !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,.94) !important;
+  color: #24212b !important;
+  font-size: 10px !important;
+}
+
+.subtitle-menu .subtitle-file {
+  min-height: 42px !important;
+  margin-top: 8px !important;
+  padding: 7px 2px !important;
+}
+
+.subtitle-menu .subtitle-settings-group {
+  margin-top: 12px !important;
+  padding-top: 11px !important;
+}
+
+.subtitle-menu .subtitle-option .option-label {
+  min-height: 30px !important;
+  font-size: 10px !important;
+}
+
+.subtitle-menu .subtitle-range-row {
+  padding: 9px 0 8px !important;
+}
+
+.subtitle-menu .setting-range {
+  margin-top: 7px !important;
+}
+
+.speed-menu .speed-current {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 4px 0 12px !important;
+}
+
+.speed-menu .speed-current span {
+  font-size: 34px !important;
+  line-height: 1.1 !important;
+  font-weight: 650 !important;
+  letter-spacing: -1.2px !important;
+}
+
+.speed-menu .speed-input-wrap {
+  height: 42px !important;
+  margin: 0 0 14px !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+}
+
+.speed-menu .speed-input-wrap input {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.speed-menu .speed-range {
+  margin: 4px 2px 0 !important;
+}
+
+.speed-menu .speed-limits {
+  display: flex !important;
+  justify-content: space-between !important;
+  margin: 5px 2px 12px !important;
+  direction: ltr !important;
+}
+
+.speed-menu .apply-speed {
+  width: 100% !important;
+  min-height: 42px !important;
+  border-radius: 11px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.player-context-menu {
+  width: min(420px, calc(100vw - 24px)) !important;
+  max-height: min(76dvh, 600px) !important;
+  padding: 16px !important;
+  border-radius: 18px !important;
+  background: rgba(27,25,34,.78) !important;
+  border: 1px solid rgba(255,255,255,.20) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
+  backdrop-filter: blur(22px) saturate(150%) !important;
+}
+
+.player-context-menu .player-context-header { padding-bottom: 12px !important; }
+.player-context-menu .player-context-heading strong { font-size: 15px !important; }
+.player-context-menu .player-context-item { min-height: 40px !important; border-radius: 9px !important; }
+.player-context-menu .player-context-footer { margin-top: 10px !important; padding-top: 10px !important; }
+
+@media (max-width: 760px) {
+  .subtitle-menu { width: min(330px, calc(100vw - 24px)) !important; max-height: min(72dvh, 560px) !important; }
+  .speed-menu { width: min(292px, calc(100vw - 24px)) !important; max-height: min(66dvh, 480px) !important; }
+  .player-context-menu { width: min(360px, calc(100vw - 24px)) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subtitle-menu, .speed-menu, .player-context-menu { transition: none !important; }
+}
+
+/* =========================================================
+   AURA 2.2.7 — remove the visible frame from every floating shell.
+   Keep depth through a soft external shadow; no border, outline,
+   inset highlight, or drawer side-rail is rendered.
+========================================================= */
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  border: 0 !important;
+  outline: 0 !important;
+  outline-offset: 0 !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .30) !important;
+}
+
+.player-drawer-overlay {
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+
+.subtitle-menu::before,
+.subtitle-menu::after,
+.speed-menu::before,
+.speed-menu::after,
+.player-context-menu::before,
+.player-context-menu::after,
+.player-keyboard-help::before,
+.player-keyboard-help::after,
+.player-drawer-overlay::before,
+.player-drawer-overlay::after {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* =========================================================
+   AURA 2.2.8 — SUBTITLE PANEL VISUAL REFINEMENT
+   Refine hierarchy, rhythm and legibility without changing
+   markup, control IDs, event wiring or player behavior.
+========================================================= */
+.subtitle-menu {
+  --sub-ink: #f7f5fb;
+  --sub-muted: rgba(242, 239, 249, .68);
+  --sub-soft: rgba(242, 239, 249, .48);
+  --sub-line: rgba(255, 255, 255, .105);
+  --sub-accent: #c9b2ff;
+  box-sizing: border-box !important;
+  width: min(360px, calc(100vw - 28px)) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 28px) !important;
+  max-height: min(74dvh, 590px) !important;
+  padding: 19px 20px 18px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(220, 205, 255, .3) transparent !important;
+  color: var(--sub-ink) !important;
+  background:
+    radial-gradient(120% 85% at 100% 0%, rgba(180, 151, 235, .16), transparent 56%),
+    linear-gradient(145deg, rgba(43, 41, 52, .91), rgba(27, 27, 35, .88)) !important;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 22px 58px rgba(0, 0, 0, .38), 0 5px 16px rgba(0, 0, 0, .18) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(165%) !important;
+  backdrop-filter: blur(30px) saturate(165%) !important;
+  text-align: right !important;
+}
+.subtitle-menu::before,
+.subtitle-menu::after {
+  content: none !important;
+  display: none !important;
+}
+.subtitle-menu .subtitle-panel-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 48px !important;
+  margin: 0 0 17px !important;
+  padding: 0 0 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--sub-line) !important;
+}
+.subtitle-menu .subtitle-panel-header div { gap: 4px !important; }
+.subtitle-menu .subtitle-panel-header span {
+  color: var(--sub-soft) !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  letter-spacing: .65px !important;
+}
+.subtitle-menu .subtitle-panel-header strong {
+  color: var(--sub-ink) !important;
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  line-height: 1.55 !important;
+}
+.subtitle-menu .subtitle-panel-header button {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: rgba(255,255,255,.88) !important;
+  background: rgba(255,255,255,.085) !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  font-size: 19px !important;
+  transition: background .18s ease, transform .18s ease !important;
+}
+.subtitle-menu .subtitle-panel-header button:hover {
+  background: rgba(255,255,255,.15) !important;
+  transform: rotate(90deg) !important;
+}
+.subtitle-menu .subtitle-source-group,
+.subtitle-menu .subtitle-settings-group {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-settings-group {
+  margin-top: 16px !important;
+  padding-top: 14px !important;
+  border-top: 1px solid var(--sub-line) !important;
+}
+.subtitle-menu .subtitle-section-heading {
+  margin: 0 0 10px !important;
+  color: var(--sub-muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.5 !important;
+}
+.subtitle-menu .subtitle-upload {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 9px !important;
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 0 13px !important;
+  color: #292432 !important;
+  background: linear-gradient(135deg, #fbfaff, #e9e3f3) !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.12) !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  transition: transform .18s ease, filter .18s ease !important;
+}
+.subtitle-menu .subtitle-upload:hover { filter: brightness(1.04) !important; transform: translateY(-1px) !important; }
+.subtitle-menu .subtitle-upload-mark { color: #8063b2 !important; font-size: 17px !important; }
+.subtitle-menu .subtitle-upload-format { color: rgba(45,39,55,.48) !important; font-size: 9px !important; }
+.subtitle-menu .subtitle-file {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 52px !important;
+  margin: 9px 0 0 !important;
+  padding: 7px 3px !important;
+  gap: 10px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--sub-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-file-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  flex: 0 0 34px !important;
+  color: #e9ddff !important;
+  background: rgba(196, 169, 255, .15) !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+}
+.subtitle-menu .subtitle-file-info { min-width: 0 !important; gap: 3px !important; }
+.subtitle-menu .subtitle-file-info strong {
+  display: block !important;
+  overflow: hidden !important;
+  color: var(--sub-ink) !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.subtitle-menu .subtitle-file-info span { color: var(--sub-muted) !important; font-size: 9px !important; }
+.subtitle-menu #removeSubtitle {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  flex: 0 0 28px !important;
+  color: rgba(255,255,255,.72) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  font-size: 17px !important;
+}
+.subtitle-menu #removeSubtitle:hover { color: #fff !important; background: rgba(255,255,255,.09) !important; }
+.subtitle-menu .subtitle-option {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-switch-row + .subtitle-switch-row {
+  margin-top: 3px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(255,255,255,.065) !important;
+}
+.subtitle-menu .subtitle-option .option-label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 34px !important;
+  gap: 12px !important;
+  color: rgba(255,255,255,.88) !important;
+  font-size: 11px !important;
+  font-weight: 550 !important;
+}
+.subtitle-menu .subtitle-option .option-label strong {
+  color: #e8dcff !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+.subtitle-menu .switch {
+  width: 40px !important;
+  height: 23px !important;
+  flex: 0 0 40px !important;
+  padding: 2px !important;
+  background: rgba(255,255,255,.12) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.18) !important;
+}
+.subtitle-menu .switch span { width: 17px !important; height: 17px !important; background: #d4d1dc !important; box-shadow: 0 1px 3px rgba(0,0,0,.2) !important; }
+.subtitle-menu .switch.active { background: #9274c5 !important; }
+.subtitle-menu .switch.active span { background: #fff !important; }
+.subtitle-menu .subtitle-range-row { padding: 5px 0 8px !important; }
+.subtitle-menu .subtitle-range-row .option-label { min-height: 27px !important; margin-bottom: 5px !important; }
+.subtitle-menu .setting-range {
+  display: block !important;
+  width: 100% !important;
+  height: 5px !important;
+  margin: 7px 0 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.2) !important;
+  accent-color: var(--sub-accent) !important;
+  cursor: pointer !important;
+}
+.subtitle-menu .setting-range::-webkit-slider-thumb {
+  width: 14px !important; height: 14px !important;
+  border: 2px solid rgba(255,255,255,.88) !important;
+  border-radius: 50% !important;
+  background: var(--sub-accent) !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.25) !important;
+}
+.subtitle-menu .setting-range::-moz-range-thumb {
+  width: 11px !important; height: 11px !important;
+  border: 2px solid rgba(255,255,255,.88) !important;
+  border-radius: 50% !important;
+  background: var(--sub-accent) !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.25) !important;
+}
+.subtitle-menu .subtitle-range-hints {
+  display: flex !important;
+  justify-content: space-between !important;
+  margin-top: 7px !important;
+  color: var(--sub-muted) !important;
+  font-size: 9px !important;
+}
+.subtitle-menu .embedded-subtitle-section {
+  margin: 12px 0 0 !important;
+  padding: 12px 0 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--sub-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .embedded-subtitle-tracks { max-height: 116px !important; margin-top: 7px !important; gap: 2px !important; }
+.subtitle-menu .embedded-subtitle-track {
+  min-height: 34px !important;
+  padding: 7px 9px !important;
+  color: rgba(255,255,255,.84) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  font-size: 10px !important;
+}
+.subtitle-menu .embedded-subtitle-track:hover { background: rgba(255,255,255,.07) !important; }
+.subtitle-menu .embedded-subtitle-track.active { color: #fff !important; background: rgba(190,160,244,.16) !important; box-shadow: inset -2px 0 0 #c9b2ff !important; }
+.subtitle-menu .embedded-subtitle-track-state,
+.subtitle-menu .embedded-subtitle-message { color: var(--sub-muted) !important; font-size: 9px !important; }
+
+/* Match the speed dialog's shell and controls to the subtitle panel. */
+.speed-menu {
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 20px !important;
+  background: radial-gradient(120% 85% at 100% 0%, rgba(180,151,235,.16), transparent 56%), linear-gradient(145deg, rgba(43,41,52,.91), rgba(27,27,35,.88)) !important;
+  box-shadow: 0 22px 58px rgba(0,0,0,.38), 0 5px 16px rgba(0,0,0,.18) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(165%) !important;
+  backdrop-filter: blur(30px) saturate(165%) !important;
+}
+.speed-menu::before, .speed-menu::after { content: none !important; display: none !important; }
+.speed-menu .speed-header { padding-bottom: 14px !important; border-bottom: 1px solid rgba(255,255,255,.105) !important; }
+.speed-menu .speed-input-wrap { border: 0 !important; border-radius: 10px !important; background: rgba(255,255,255,.09) !important; }
+.speed-menu .apply-speed { border-radius: 10px !important; }
+@media (max-width: 640px) {
+  .subtitle-menu { width: min(360px, calc(100vw - 20px)) !important; max-width: calc(100vw - 20px) !important; max-height: min(72dvh, 560px) !important; padding: 16px !important; border-radius: 17px !important; }
+  .speed-menu { max-width: calc(100vw - 20px) !important; max-height: min(68dvh, 520px) !important; padding: 15px !important; border-radius: 17px !important; }
+}
+
+/* =========================================================
+   AURA 2.2.9 — coherent panel surfaces and control materials
+   Remove the harsh opaque blocks inside floating panels. Keep
+   one calm glass shell and use restrained translucent controls.
+========================================================= */
+.subtitle-menu,
+.speed-menu {
+  background:
+    radial-gradient(115% 90% at 92% 0%, rgba(190, 166, 255, .19), transparent 58%),
+    radial-gradient(85% 75% at 0% 100%, rgba(117, 142, 190, .10), transparent 62%),
+    linear-gradient(145deg, rgba(39, 39, 49, .86), rgba(25, 26, 34, .82)) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(155%) !important;
+  backdrop-filter: blur(34px) saturate(155%) !important;
+}
+
+/* Subtitle source: no dark rectangular slab behind the selected file. */
+.subtitle-menu .subtitle-file {
+  background: linear-gradient(100deg, rgba(255,255,255,.055), rgba(255,255,255,.018)) !important;
+  border: 0 !important;
+  border-radius: 11px !important;
+  padding: 8px 9px !important;
+  margin-top: 9px !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-file-icon {
+  background: rgba(197, 174, 255, .13) !important;
+  color: rgba(240, 231, 255, .94) !important;
+}
+.subtitle-menu .subtitle-file-info strong { color: rgba(255,255,255,.96) !important; }
+.subtitle-menu .subtitle-file-info span { color: rgba(235,231,245,.62) !important; }
+
+/* A soft, tinted upload action instead of a stark white block. */
+.subtitle-menu .subtitle-upload {
+  color: #f7f2ff !important;
+  background: linear-gradient(115deg, rgba(194,170,255,.22), rgba(255,255,255,.095)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 7px 18px rgba(0,0,0,.12) !important;
+}
+.subtitle-menu .subtitle-upload:hover {
+  background: linear-gradient(115deg, rgba(204,184,255,.29), rgba(255,255,255,.13)) !important;
+}
+.subtitle-menu .subtitle-upload-mark { color: #d8c5ff !important; }
+.subtitle-menu .subtitle-upload-format { color: rgba(245,240,255,.56) !important; }
+
+/* Settings remain on the main glass surface; only subtle separators. */
+.subtitle-menu .subtitle-settings-group,
+.subtitle-menu .embedded-subtitle-section {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subtitle-menu .subtitle-switch-row + .subtitle-switch-row {
+  border-top-color: rgba(255,255,255,.055) !important;
+}
+.subtitle-menu .subtitle-option .option-label { color: rgba(250,248,255,.9) !important; }
+.subtitle-menu .switch {
+  background: rgba(255,255,255,.105) !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.22), 0 1px 0 rgba(255,255,255,.035) !important;
+}
+.subtitle-menu .switch.active { background: linear-gradient(100deg, #9274c5, #aa8bdd) !important; }
+.subtitle-menu .setting-range {
+  background: linear-gradient(90deg, rgba(210,190,255,.55), rgba(255,255,255,.16)) !important;
+}
+.subtitle-menu .subtitle-range-hints { color: rgba(235,231,245,.56) !important; }
+.subtitle-menu .embedded-subtitle-track.active {
+  background: rgba(190,160,244,.13) !important;
+  box-shadow: none !important;
+}
+
+/* Speed controls: layered translucency, not nested opaque cards. */
+.speed-menu .speed-current {
+  color: #fff !important;
+  text-shadow: 0 2px 18px rgba(205,184,255,.18) !important;
+}
+.speed-menu .speed-input-wrap {
+  background: linear-gradient(110deg, rgba(255,255,255,.09), rgba(255,255,255,.045)) !important;
+  border: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+.speed-menu .speed-input-wrap input {
+  color: #fff !important;
+  background: transparent !important;
+}
+.speed-menu .speed-input-wrap > span { color: rgba(245,240,255,.55) !important; }
+.speed-menu .speed-range input {
+  accent-color: #c8afff !important;
+}
+.speed-menu .apply-speed {
+  color: #fbf9ff !important;
+  background: linear-gradient(110deg, rgba(178,151,230,.82), rgba(128,105,177,.88)) !important;
+  border: 0 !important;
+  box-shadow: 0 7px 18px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+.speed-menu .apply-speed:hover { filter: brightness(1.08) !important; }
+
+/* Prevent legacy component backgrounds from leaking through nested wrappers. */
+.subtitle-menu .subtitle-source-group,
+.subtitle-menu .subtitle-settings-group,
+.subtitle-menu .subtitle-option,
+.subtitle-menu .subtitle-appearance-group,
+.speed-menu .speed-header,
+.speed-menu .speed-current,
+.speed-menu .speed-range,
+.speed-menu .speed-limits {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .subtitle-menu, .speed-menu {
+    background: rgba(30, 30, 39, .97) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+
+/* =========================================================
+   AURA 2.2.12 — FIXED GLASS SURFACE ARCHITECTURE
+   One backdrop-filter per floating window. Inner content is
+   flat, transparent UI; no row-level glass/backdrop panels.
+========================================================= */
+
+/* Every floating window has one soft shell and no decorative frame. */
+.subtitle-menu,
+.speed-menu,
+.player-context-menu,
+.player-keyboard-help,
+.player-drawer-overlay,
+.player-osd,
+.player-status,
+.seek-tooltip {
+  border: 0 !important;
+  outline: none !important;
+  background-clip: padding-box !important;
+  box-shadow: 0 22px 58px rgba(0,0,0,.34), 0 5px 16px rgba(0,0,0,.16) !important;
+}
+
+.subtitle-menu::after,
+.speed-menu::after,
+.player-context-menu::after,
+.player-keyboard-help::after,
+.player-drawer-overlay::after,
+.player-osd::after,
+.player-status::after,
+.seek-tooltip::after {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Critical regression fix: previously these elements kept a 12px
+   backdrop-filter even after their backgrounds had been made transparent.
+   The result was a dark, rectangular blur plate behind each row. */
+.subtitle-menu *,
+.speed-menu *,
+.player-context-menu *,
+.player-keyboard-help *,
+.player-drawer-overlay * {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Subtitle settings live directly on the panel's continuous glass. */
+.subtitle-menu .subtitle-source-group,
+.subtitle-menu .subtitle-settings-group,
+.subtitle-menu .subtitle-appearance-group,
+.subtitle-menu .subtitle-option,
+.subtitle-menu .subtitle-switch-row,
+.subtitle-menu .subtitle-range-row,
+.subtitle-menu .subtitle-range-row > .option-label,
+.subtitle-menu .subtitle-switch-row > .option-label,
+.subtitle-menu .subtitle-range-hints,
+.subtitle-menu .subtitle-file,
+.subtitle-menu .embedded-subtitle-section,
+.subtitle-menu .embedded-subtitle-tracks,
+.subtitle-menu .embedded-subtitle-track {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.subtitle-menu .subtitle-option,
+.subtitle-menu .subtitle-switch-row,
+.subtitle-menu .subtitle-range-row {
+  border-inline: 0 !important;
+  border-radius: 0 !important;
+}
+
+.subtitle-menu .subtitle-switch-row + .subtitle-switch-row,
+.subtitle-menu .subtitle-range-row + .subtitle-range-row {
+  border-top: 1px solid rgba(255,255,255,.07) !important;
+}
+
+.subtitle-menu .subtitle-file {
+  border: 0 !important;
+  border-block: 1px solid rgba(255,255,255,.07) !important;
+}
+
+/* File selection remains an intentional action surface, but not a second
+   glass pane. The selected file row and its icon are plain content. */
+.subtitle-menu .subtitle-upload {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 5px 14px rgba(0,0,0,.10) !important;
+}
+.subtitle-menu .subtitle-upload-mark,
+.subtitle-menu .subtitle-file-icon {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.subtitle-menu .option-label,
+.subtitle-menu .subtitle-range-hints {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+/* Native controls keep their own identity and interaction feedback. */
+.subtitle-menu .switch,
+.subtitle-menu .setting-range {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Speed: the input itself is the only secondary control surface. */
+.speed-menu .speed-input-wrap {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.12) !important;
+}
+.speed-menu .speed-header button,
+.speed-menu .speed-current,
+.speed-menu .speed-range,
+.speed-menu .speed-limits {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* The remaining popups follow the same single-shell rule. */
+.player-context-menu .player-context-section,
+.player-context-menu .player-context-item,
+.player-context-menu .player-context-help-button,
+.player-context-menu .player-context-close,
+.player-keyboard-help .player-help-group,
+.player-keyboard-help .player-help-search,
+.player-keyboard-help .player-help-row,
+.player-keyboard-help .player-help-header button,
+.player-drawer-overlay .drawer-v-item {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.player-context-menu .player-context-item,
+.player-context-menu .player-context-help-button,
+.player-keyboard-help .player-help-row,
+.player-drawer-overlay .drawer-v-item {
+  background: transparent !important;
+}
+
+.player-context-menu .player-context-item:hover,
+.player-context-menu .player-context-help-button:hover,
+.player-keyboard-help .player-help-row:hover,
+.player-drawer-overlay .drawer-v-item:hover {
+  background: rgba(255,255,255,.075) !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .subtitle-menu,
+  .speed-menu,
+  .player-context-menu,
+  .player-keyboard-help,
+  .player-drawer-overlay,
+  .player-osd,
+  .player-status,
+  .seek-tooltip {
+    background: rgba(31,30,40,.96) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* =========================================================
+   AURA 2.2.13 — SINGLE CONTEXT-MENU EDGE
+   Keep one intentional outer rim. Remove the reflection pseudo-layer
+   and inset highlights that made the same shell look double-framed.
+========================================================= */
+.player-context-menu {
+  border: 1px solid rgba(232, 226, 244, .18) !important;
+  outline: 0 !important;
+  outline-offset: 0 !important;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, .38) !important;
+  background-clip: padding-box !important;
+}
+
+.player-context-menu::before,
+.player-context-menu::after {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* =========================================================
+   AURA 2.2.14 — CURRENTLY PLAYING DRAWER STATE
+   Make the active folder item unmistakable without adding nested cards.
+========================================================= */
+#livePlaylistDrawer .drawer-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 0 14px 8px;
+  padding: 8px 2px 10px;
+  border-bottom: 1px solid rgba(235, 229, 246, .13);
+  color: rgba(248, 245, 255, .94);
+}
+
+#livePlaylistDrawer .drawer-now-playing[hidden] {
+  display: none !important;
+}
+
+#livePlaylistDrawer .drawer-now-playing-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 18px;
+  height: 20px;
+  flex: 0 0 18px;
+  color: #BDA5F4;
+}
+
+#livePlaylistDrawer .drawer-now-playing-indicator i {
+  display: block;
+  width: 3px;
+  height: 6px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: .82;
+}
+
+#livePlaylistDrawer .drawer-now-playing[data-state="playing"] .drawer-now-playing-indicator i {
+  animation: aura-drawer-equalizer 720ms ease-in-out infinite alternate;
+}
+
+#livePlaylistDrawer .drawer-now-playing[data-state="playing"] .drawer-now-playing-indicator i:nth-child(2) {
+  animation-delay: 180ms;
+}
+
+#livePlaylistDrawer .drawer-now-playing[data-state="playing"] .drawer-now-playing-indicator i:nth-child(3) {
+  animation-delay: 360ms;
+}
+
+#livePlaylistDrawer .drawer-now-playing[data-state="current"] .drawer-now-playing-indicator i:nth-child(2) {
+  height: 3px;
+}
+
+#livePlaylistDrawer .drawer-now-playing-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  direction: rtl;
+  text-align: right;
+}
+
+#livePlaylistDrawer .drawer-now-playing-copy > span {
+  color: rgba(208, 190, 242, .9);
+  font-size: .64rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+#livePlaylistDrawer .drawer-now-playing-copy > strong {
+  overflow: hidden;
+  color: rgba(250, 248, 255, .98);
+  font-size: .76rem;
+  font-weight: 650;
+  line-height: 1.55;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#livePlaylistDrawer .drawer-v-item {
+  position: relative;
+  direction: rtl;
+  min-height: 42px;
+  gap: 9px;
+}
+
+#livePlaylistDrawer .drawer-v-item .drawer-v-name {
+  flex: 1 1 auto;
+  direction: inherit;
+  text-align: right;
+}
+
+#livePlaylistDrawer .drawer-v-item .drawer-v-state {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  max-width: 100px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(226, 214, 250, .96);
+  background: rgba(177, 151, 226, .17);
+  font-size: .59rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+#livePlaylistDrawer .drawer-v-item .drawer-v-state[hidden] {
+  display: none !important;
+}
+
+#livePlaylistDrawer .drawer-v-item.active {
+  color: #F7F2FF !important;
+  background: linear-gradient(100deg, rgba(175, 149, 226, .16), rgba(175, 149, 226, .055)) !important;
+  box-shadow: inset -3px 0 0 rgba(202, 180, 246, .92) !important;
+}
+
+#livePlaylistDrawer .drawer-v-item.active .drawer-v-icon {
+  color: #D7C5FF;
+}
+
+#livePlaylistDrawer .drawer-v-item.is-playing .drawer-v-state {
+  color: #E7DCFF;
+  background: rgba(177, 151, 226, .24);
+}
+
+#livePlaylistDrawer .drawer-v-item:focus-visible {
+  outline: 2px solid rgba(207, 187, 247, .8);
+  outline-offset: 2px;
+}
+
+@keyframes aura-drawer-equalizer {
+  from { height: 4px; opacity: .7; }
+  to { height: 15px; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #livePlaylistDrawer .drawer-now-playing-indicator i {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  #livePlaylistDrawer .drawer-now-playing {
+    margin-inline: 11px;
+    padding-block: 7px 9px;
+  }
+
+  #livePlaylistDrawer .drawer-v-item .drawer-v-state {
+    max-width: 88px;
+    padding-inline: 6px;
+    font-size: .56rem;
   }
 }
