@@ -6267,7 +6267,7 @@ html.aura-extreme-playback {
   border-radius: 8px !important;
   font-size: 10px !important;
 }
-.speed-menu .apply-speed:hover { background: #FFFFFF !important; }
+.speed-menu .apply-speed:hover { background: #FFFFff4f !important; }
 
 @media (max-width: 640px) {
   .subtitle-menu { width: min(260px, calc(100vw - 20px)) !important; min-width: 0 !important; max-width: calc(100vw - 20px) !important; max-height: min(68dvh, 520px) !important; padding: 13px !important; border-radius: 15px !important; }
