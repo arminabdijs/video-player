@@ -1,0 +1,225 @@
+{
+  "name": "aura-material-video-player-pro",
+  "productName": "Aura Player",
+  "version": "2.5.13",
+  "private": true,
+  "description": "Aura Player Linux AppImage/DEB and Windows x64 NSIS setup installers with bundled native libmpv runtime",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "codec:diagnose": "node scripts/codec-diagnostics.cjs",
+    "test": "node --check scripts/script.js && node --check scripts/media-support.js && node --check scripts/matroska-subtitles.js && node --check scripts/codec-diagnostics.cjs && node --check scripts/build-native-engine.cjs && node --check scripts/build-current-installer.cjs && node --check scripts/electron-before-pack.cjs && node --check desktop/main.cjs && node --check desktop/media-arguments.cjs && node --check desktop/preload.cjs && node --check desktop/embedded-mpv-host.cjs && node --check desktop/trusted-renderer.cjs && node --check desktop/native-status.cjs && node --check desktop/process-lifecycle.cjs && node --check tests/process-lifecycle.test.cjs && node --check tests/native-frame-thumbnail-performance.test.cjs && node --test tests/*.test.cjs",
+    "web:serve": "npx serve .",
+    "desktop:dev": "npm run native:build && electron .",
+    "desktop:dist:linux": "npm run native:build && node scripts/build-linux-packages.cjs",
+    "desktop:dist:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Build-Windows-Setup.ps1",
+    "desktop:dist": "node -e \"console.error('Build each platform on its own native runner: npm run desktop:dist:linux or npm run desktop:dist:windows.'); process.exit(1)\"",
+    "desktop:dist:appimage": "npm run native:build && electron-builder --linux AppImage",
+    "desktop:dist:deb": "npm run native:build && node scripts/build-deb.cjs",
+    "native:build": "node scripts/build-native-engine.cjs",
+    "desktop:integrate:linux": "node scripts/integrate-linux-desktop.cjs",
+    "desktop:dist:windows:setup": "electron-builder --win nsis",
+    "desktop:dist:current": "node scripts/build-current-installer.cjs"
+  },
+  "devDependencies": {
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "info.arminabdi.aura-player",
+    "productName": "Aura Player",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "index.html",
+      "css/**/*",
+      "scripts/**/*",
+      "desktop/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/dist",
+        "to": "native",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.md",
+        "to": "THIRD-PARTY-NOTICES.md"
+      }
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "fileAssociations": [
+        {
+          "ext": [
+            "264",
+            "265",
+            "266",
+            "3g2",
+            "3gp",
+            "3gpp",
+            "amv",
+            "asf",
+            "avi",
+            "av1",
+            "bik",
+            "dav",
+            "divx",
+            "dv",
+            "dvr-ms",
+            "f4v",
+            "fli",
+            "flc",
+            "flv",
+            "gxf",
+            "h264",
+            "h265",
+            "hevc",
+            "ivf",
+            "m1v",
+            "m2p",
+            "m2t",
+            "m2ts",
+            "m2v",
+            "m3u8",
+            "m4v",
+            "mj2",
+            "mk3d",
+            "mkv",
+            "mod",
+            "mov",
+            "mp2v",
+            "mp4",
+            "mpd",
+            "mpe",
+            "mpeg",
+            "mpeg1",
+            "mpeg2",
+            "mpegts",
+            "mpg",
+            "mts",
+            "mxf",
+            "nsv",
+            "nut",
+            "ogm",
+            "ogv",
+            "qt",
+            "r3d",
+            "rec",
+            "rm",
+            "rmvb",
+            "roq",
+            "smk",
+            "tod",
+            "ts",
+            "vdr",
+            "vob",
+            "vro",
+            "webm",
+            "wmv",
+            "wtv",
+            "y4m",
+            "yuv"
+          ],
+          "name": "Video file",
+          "description": "Video file opened with Aura Player"
+        }
+      ],
+      "icon": "assets/icons/aura-player.ico",
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "perMachine": true,
+      "allowElevation": true,
+      "shortcutName": "Aura Player",
+      "uninstallDisplayName": "Aura Player 2.5.13",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "maintainer": "Aura Player maintainers",
+      "synopsis": "Cross-platform media player",
+      "mimeTypes": [
+        "video/mp4",
+        "video/x-matroska",
+        "video/webm",
+        "video/x-msvideo",
+        "video/quicktime",
+        "video/mpeg",
+        "video/mp2t",
+        "video/x-ms-wmv",
+        "video/x-flv",
+        "video/x-ms-asf",
+        "video/ogg",
+        "application/ogg",
+        "application/vnd.apple.mpegurl",
+        "application/x-mpegURL",
+        "application/dash+xml",
+        "application/mxf",
+        "video/x-matroska-3d",
+        "video/x-ivf",
+        "video/x-nut",
+        "video/x-yuv4mpeg",
+        "video/x-rm"
+      ],
+      "syncDesktopName": true,
+      "icon": "assets/icons/linux",
+      "desktop": {
+        "entry": {
+          "Name": "Aura Player",
+          "GenericName": "Media Player",
+          "Comment": "Play local video and audio files",
+          "Icon": "info.arminabdi.aura-player",
+          "Terminal": "false",
+          "Type": "Application",
+          "Categories": "AudioVideo;Video;Player;",
+          "StartupNotify": "true",
+          "StartupWMClass": "info.arminabdi.aura-player"
+        }
+      }
+    },
+    "beforePack": "scripts/electron-before-pack.cjs",
+    "afterPack": "scripts/electron-after-pack.cjs"
+  },
+  "homepage": "https://github.com/arminabdijs/video-player",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arminabdijs/video-player.git"
+  },
+  "author": {
+    "name": "Armin Abdi"
+  },
+  "desktopName": "info.arminabdi.aura-player"
+}

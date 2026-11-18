@@ -1,0 +1,47 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const pkg = require('../package.json');
+const buildScript = fs.readFileSync(path.join(root, 'scripts/Build-Windows-Setup.ps1'), 'utf8');
+
+test('Windows release produces an NSIS Setup only, not a portable build', () => {
+  assert.equal(pkg.version, '2.5.13');
+  assert.deepEqual(pkg.build.win.target, [{ target: 'nsis', arch: ['x64'] }]);
+  assert.equal(pkg.build.win.artifactName, '${productName}-Setup-${version}-${arch}.${ext}');
+  assert.match(pkg.scripts['desktop:dist:windows'], /Build-Windows-Setup\.ps1/);
+  assert.match(buildScript, /desktop:dist:windows:setup/);
+  assert.equal(pkg.scripts['desktop:dist:windows:setup'], 'electron-builder --win nsis');
+  assert.doesNotMatch(pkg.scripts['desktop:dist:windows'], /portable/i);
+});
+
+test('NSIS setup installs the app and creates normal Windows shortcuts', () => {
+  const nsis = pkg.build.nsis;
+  assert.equal(nsis.oneClick, false);
+  assert.equal(nsis.perMachine, true);
+  assert.equal(nsis.allowElevation, true);
+  assert.equal(nsis.allowToChangeInstallationDirectory, true);
+  assert.equal(nsis.createDesktopShortcut, true);
+  assert.equal(nsis.createStartMenuShortcut, true);
+  assert.equal(nsis.shortcutName, 'Aura Player');
+  assert.equal(nsis.runAfterFinish, true);
+  assert.equal(nsis.deleteAppDataOnUninstall, false);
+  assert.ok(pkg.build.win.fileAssociations.some((association) => association.ext.includes('mp4') && association.ext.includes('mkv')));
+  assert.ok(fs.existsSync(path.join(root, pkg.build.win.icon)));
+});
+
+test('PowerShell builder validates target OS and native SDK before packaging', () => {
+  assert.match(buildScript, /Windows_NT/);
+  assert.match(buildScript, /Visual Studio/);
+  assert.match(buildScript, /MPV_INCLUDE_DIR/);
+  assert.match(buildScript, /MPV_LIB/);
+  assert.match(buildScript, /MPV_RUNTIME_DIR/);
+  assert.match(buildScript, /SDL2_DIR/);
+  assert.match(buildScript, /codec:diagnose/);
+  assert.match(buildScript, /desktop:dist:windows:setup/);
+  assert.match(buildScript, /\*-Setup-\*-x64\.exe/);
+});
