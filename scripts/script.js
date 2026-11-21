@@ -4235,6 +4235,22 @@ function startVideoFrameWatchdog() {
     return;
   }
 
+  const readFrameCounters = () => {
+    const quality = typeof video.getVideoPlaybackQuality === 'function'
+      ? video.getVideoPlaybackQuality()
+      : null;
+    return {
+      total: Math.max(
+        Number(quality?.totalVideoFrames) || 0,
+        Number(video.webkitDecodedFrameCount) || 0,
+      ),
+      dropped: Math.max(0, Number(quality?.droppedVideoFrames) || 0),
+    };
+  };
+
+  const baseline = readFrameCounters();
+  const baselinePresented = presentedVideoFrameCount;
+
   const observeFrame = () => {
     if (generation !== playbackGeneration || nativeMpvActive) return;
     presentedVideoFrameCount += 1;
@@ -4250,30 +4266,22 @@ function startVideoFrameWatchdog() {
       return;
     }
 
-    const quality = typeof video.getVideoPlaybackQuality === 'function'
-      ? video.getVideoPlaybackQuality()
-      : null;
-    const decodedFrames = Math.max(
-      Number(quality?.totalVideoFrames) || 0,
-      Number(video.webkitDecodedFrameCount) || 0,
-    );
-    const hasVideoOutput = window.AuraMediaSupport?.hasPresentedVideoFrame({
-      presentedFrames: presentedVideoFrameCount,
-      decodedFrames,
-      videoWidth: video.videoWidth,
-      videoHeight: video.videoHeight,
-      frameCallbackAvailable: true,
-    }) ?? (presentedVideoFrameCount > 0 || decodedFrames > 0);
+    const current = readFrameCounters();
+    const decodedDelta = Math.max(0, current.total - baseline.total);
+    const droppedDelta = Math.max(0, current.dropped - baseline.dropped);
+    const presentedDelta = Math.max(0, presentedVideoFrameCount - baselinePresented);
+    const observedFrames = Math.max(decodedDelta, presentedDelta);
+    const droppedRatio = decodedDelta > 0 ? droppedDelta / decodedDelta : 0;
+    const noVideoOutput = video.videoWidth < 1 ||
+      (decodedDelta < 8 && presentedDelta < 8);
+    const browserPlaybackIsStalling = observedFrames >= 30 &&
+      droppedDelta >= 6 && droppedRatio >= 0.15;
 
-    const droppedFrames = Math.max(0, Number(quality?.droppedVideoFrames) || 0);
-    const droppedRatio = decodedFrames > 0 ? droppedFrames / decodedFrames : 0;
-    const browserPlaybackIsStalling = hasVideoOutput && decodedFrames >= 90 && droppedRatio >= 0.18;
-
-    if (!hasVideoOutput || browserPlaybackIsStalling) {
+    if (noVideoOutput || browserPlaybackIsStalling) {
       showPlayerStatus(
         browserPlaybackIsStalling
-          ? 'پخش مرورگر افت فریم قابل‌توجه دارد؛ موتور جایگزین در حال فعال‌شدن است…'
-          : 'صدا پخش می‌شود اما موتور مرورگر تصویر تولید نمی‌کند؛ موتور داخلی پخش در حال فعال‌شدن است…',
+          ? 'پخش این کدک در مسیر مرورگر افت فریم دارد؛ موتور جایگزین در حال فعال‌شدن است…'
+          : 'این کدک در مسیر مرورگر تصویر قابل‌پخش تولید نکرد؛ موتور داخلی در حال فعال‌شدن است…',
         { timeout: 0 },
       );
       const result = await tryDesktopMpvFallback();
@@ -4284,14 +4292,14 @@ function startVideoFrameWatchdog() {
       return;
     }
 
-    // Keep checking long clips. MediaCapabilities predicts performance from a
-    // representative profile; real dropped-frame telemetry is the final judge.
+    // Re-sample deltas during long playback. Cumulative drop counters would
+    // otherwise keep a historical bad ratio forever or hide a later stall.
     if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
       videoFrameWatchdogTimer = window.setTimeout(() => {
         if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
           startVideoFrameWatchdog();
         }
-      }, 5000);
+      }, 4000);
     }
   }, 2600);
 }
