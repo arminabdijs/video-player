@@ -40,6 +40,7 @@ test('OS-opened media enters the regular playlist and embedded playback surface'
   assert.match(script, /function handleExternalMediaOpen\(descriptor\)/);
   assert.match(script, /new File\(\[\], descriptor\.name/);
   assert.match(script, /externalPath: descriptor\.path/);
+  assert.match(script, /browserUrl: typeof descriptor\.browserUrl === 'string'/);
   assert.match(script, /renderExplorer\(\);\s*playIndex\(0, \[item\]\)/);
   assert.match(script, /card\._videoPath = item\.externalPath/);
   assert.match(script, /card\._videoPath \|\| window\.auraDesktop\.getPathForFile\(file\)/);
