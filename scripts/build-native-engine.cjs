@@ -158,6 +158,23 @@ function buildLinux() {
   verifyBundledCodecs(path.join(DIST_DIR, 'aura-mpv-frame-host'), 'linux');
 }
 
+function verifyWindowsExecutableDependencies(executable, runtimeDir) {
+  const result = spawnSync('objdump', ['-p', executable], { encoding: 'utf8', windowsHide: true });
+  if (result.error || result.status !== 0) {
+    fail(`Could not audit Windows native host dependencies with objdump: ${result.error?.message || result.stderr || `exit ${result.status}`}`);
+  }
+  const imports = [...String(result.stdout || '').matchAll(/^\s*DLL Name:\s*(\S+)/gim)].map((match) => match[1]);
+  const windowsSystem = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
+  const unresolved = imports.filter((name) => {
+    if (/^(api-ms-win-|ext-ms-win-)/i.test(name)) return false;
+    if (fs.existsSync(path.join(windowsSystem, name))) return false;
+    return !fs.existsSync(path.join(runtimeDir, name));
+  });
+  if (unresolved.length) {
+    fail(`The Windows native host has unresolved runtime DLL imports: ${unresolved.join(', ')}. Refusing to package an incomplete application.`);
+  }
+}
+
 function buildWindows() {
   const includeDir = process.env.MPV_INCLUDE_DIR;
   const importLibrary = process.env.MPV_LIB;
@@ -167,7 +184,7 @@ function buildWindows() {
       'Windows native playback requires the libmpv SDK and runtime DLL bundle.',
       'Set MPV_INCLUDE_DIR, MPV_LIB and MPV_RUNTIME_DIR to the matching x64 libmpv SDK/runtime.',
       'MPV_RUNTIME_DIR must contain libmpv-2.dll, SDL2.dll and the FFmpeg/codec dependency DLLs.',
-      'Build on Windows x64 with Visual Studio Build Tools, CMake and the SDL2 development package.',
+      'Build on Windows x64 with the matching MSVC or MinGW-w64 compiler, CMake and the SDL2 development package.',
       'The Windows runtime is not downloaded at app launch; it is copied into resources during packaging.',
     ].join('\n'));
   }
@@ -180,18 +197,41 @@ function buildWindows() {
 
   fs.rmSync(DIST_DIR, { recursive: true, force: true });
   fs.mkdirSync(DIST_DIR, { recursive: true });
-  run('cmake', ['-S', SOURCE_DIR, '-B', BUILD_DIR, '-A', 'x64', '-DCMAKE_BUILD_TYPE=Release'], { stdio: 'inherit' });
+
+  // The normal developer build uses the Visual Studio x64 generator. The
+  // release pipeline can instead use the MinGW-w64 toolchain supplied by its
+  // isolated Windows CI runner, avoiding a Visual Studio installation on the
+  // developer's machine and allowing the LGPL libmpv MinGW SDK to be used.
+  const useMingw = process.env.AURA_WINDOWS_TOOLCHAIN === 'mingw';
+  if (useMingw) {
+    const generator = process.env.CMAKE_GENERATOR || 'Ninja';
+    run('cmake', [
+      '-S', SOURCE_DIR,
+      '-B', BUILD_DIR,
+      '-G', generator,
+      '-DCMAKE_BUILD_TYPE=Release',
+    ], { stdio: 'inherit' });
+  } else {
+    run('cmake', ['-S', SOURCE_DIR, '-B', BUILD_DIR, '-A', 'x64', '-DCMAKE_BUILD_TYPE=Release'], { stdio: 'inherit' });
+  }
   run('cmake', ['--build', BUILD_DIR, '--config', 'Release', '--parallel']);
-  const built = path.join(BUILD_DIR, 'dist', 'Release', 'aura-mpv-frame-host.exe');
-  const alternate = path.join(BUILD_DIR, 'dist', 'aura-mpv-frame-host.exe');
-  const executable = fs.existsSync(built) ? built : alternate;
-  if (!fs.existsSync(executable)) fail('CMake did not produce aura-mpv-frame-host.exe.');
+  const candidates = [
+    path.join(BUILD_DIR, 'dist', 'Release', 'aura-mpv-frame-host.exe'),
+    path.join(BUILD_DIR, 'dist', 'aura-mpv-frame-host.exe'),
+  ];
+  const executable = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!executable) fail('CMake did not produce aura-mpv-frame-host.exe.');
   fs.copyFileSync(executable, path.join(DIST_DIR, 'aura-mpv-frame-host.exe'));
   for (const entry of fs.readdirSync(runtimeDir, { withFileTypes: true })) {
     if (entry.isFile() && entry.name.toLowerCase().endsWith('.dll')) {
       fs.copyFileSync(path.join(runtimeDir, entry.name), path.join(DIST_DIR, entry.name));
     }
   }
+  const runtimeLicenses = path.join(runtimeDir, 'licenses');
+  if (fs.existsSync(runtimeLicenses)) {
+    fs.cpSync(runtimeLicenses, path.join(DIST_DIR, 'licenses'), { recursive: true });
+  }
+  if (useMingw) verifyWindowsExecutableDependencies(path.join(DIST_DIR, 'aura-mpv-frame-host.exe'), DIST_DIR);
   const runtimeFiles = ['aura-mpv-frame-host.exe', ...fs.readdirSync(DIST_DIR).filter((name) => name.toLowerCase().endsWith('.dll'))].sort();
   fs.writeFileSync(path.join(DIST_DIR, 'RUNTIME-LIBRARIES.txt'),
     `Bundled Windows libmpv, SDL2, FFmpeg and codec runtime DLLs (${runtimeFiles.length} files).\n`);

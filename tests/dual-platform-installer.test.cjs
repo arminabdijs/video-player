@@ -9,6 +9,9 @@ const root = path.resolve(__dirname, '..');
 const pkg = require('../package.json');
 const currentBuilder = fs.readFileSync(path.join(root, 'scripts/build-current-installer.cjs'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/desktop-release.yml'), 'utf8');
+const windowsPrepare = fs.readFileSync(path.join(root, 'scripts/Prepare-Windows-Native.ps1'), 'utf8');
+const windowsBuilder = fs.readFileSync(path.join(root, 'scripts/Build-Windows-Setup.ps1'), 'utf8');
+const nativeBuilder = fs.readFileSync(path.join(root, 'scripts/build-native-engine.cjs'), 'utf8');
 // The source archive may be extracted into a pre-created directory, leaving
 // the documentation one level above the app root. Search a small, bounded
 // number of ancestors instead of failing the installer build for this layout.
@@ -41,9 +44,10 @@ test('Linux release creates AppImage and DEB; Windows release creates NSIS Setup
   assert.equal(pkg.scripts['desktop:dist:windows:setup'], 'electron-builder --win nsis');
 });
 
-test('desktop release workflow prepares native Linux tools and checksum-verifies Windows SDK bundle', () => {
-  assert.match(workflow, /libmpv-dev/);
-  assert.match(workflow, /libsdl2-dev/);
+test('Windows release workflow provisions an isolated native toolchain and verifies the SDK bundle', () => {
+  assert.match(workflow, /name: Windows installer/);
+  assert.match(workflow, /windows-latest/);
+  assert.match(workflow, /mingw-w64-ucrt-x86_64-SDL2/);
   assert.match(workflow, /cmake/);
   assert.match(workflow, /AURA_MPV_SDK_URL/);
   assert.match(workflow, /AURA_MPV_SDK_SHA256/);
@@ -62,4 +66,23 @@ test('installer guide documents both native build hosts and output formats when 
   assert.match(installerGuide, /Setup-2\.5\.13-x64\.exe/);
   assert.match(installerGuide, /npm run desktop:dist:current/);
   assert.match(installerGuide, /Build each target on its native operating system/);
+});
+
+
+test('Windows CI builds a verified self-contained runtime without installing build tools on the developer PC', () => {
+  assert.match(workflow, /windows-latest/);
+  assert.match(workflow, /msys2\/setup-msys2@v2/);
+  assert.match(workflow, /AURA_MPV_SDK_SHA256/);
+  assert.match(windowsPrepare, /Get-FileHash/);
+  assert.match(windowsPrepare, /objdump/);
+  assert.match(windowsPrepare, /Unresolved non-system DLL dependency/);
+  assert.match(windowsPrepare, /System32/);
+  assert.match(windowsPrepare, /2\.32\.10-1/);
+  assert.match(nativeBuilder, /verifyWindowsExecutableDependencies/);
+  assert.match(nativeBuilder, /unresolved runtime DLL imports/);
+  assert.match(windowsBuilder, /Invoke-Npm @\('ci'/);
+  assert.match(windowsBuilder, /AURA_WINDOWS_TOOLCHAIN/);
+  assert.match(nativeBuilder, /runtimeLicenses/);
+  assert.ok(fs.existsSync(path.join(root, 'THIRD-PARTY-NOTICES.md')));
+  assert.match(workflow, /Aura-Player-Windows-Setup-x64/);
 });

@@ -7,3 +7,5 @@ native/dist/
 .DS_Store
 Thumbs.db
 
+build/windows-native-sdk/
+native/windows-runtime/

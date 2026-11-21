@@ -44,6 +44,11 @@ add_executable(aura-mpv-frame-host main.cpp)
 target_link_libraries(aura-mpv-frame-host PRIVATE ${AURA_SDL_TARGET} OpenGL::GL)
 if (WIN32)
   target_link_libraries(aura-mpv-frame-host PRIVATE MPV::MPV)
+  if (MINGW)
+    # Keep the helper independent from MinGW compiler-runtime DLLs. libmpv and
+    # SDL2 remain dynamically linked and are shipped beside the helper.
+    target_link_options(aura-mpv-frame-host PRIVATE -static -static-libgcc -static-libstdc++)
+  endif()
 else()
   target_link_libraries(aura-mpv-frame-host PRIVATE ${MPV_TARGET})
 endif()

@@ -1,0 +1,51 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows NSIS Setup (x64, self-contained)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install isolated UCRT64 MinGW, CMake, Ninja and SDL2 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-pkgconf
+      # Prepare-Windows-Native.ps1 uses Get-FileHash to verify the pinned SDK before extraction.
+      - name: Prepare and audit the offline Windows native runtime
+        shell: pwsh
+        env:
+          AURA_MPV_SDK_URL: https://github.com/mpv-player/mpv/releases/download/v0.42.0/libmpv-v0.42.0-x86_64-w64-mingw32-lgpl.zip
+          AURA_MPV_SDK_SHA256: 8e5f77430efc53ef175804ba6618527e3af0448a0dcabf04d3cc72659d1a6fce
+        run: ./scripts/Prepare-Windows-Native.ps1
+      - name: Build and validate Windows installer
+        shell: pwsh
+        run: ./scripts/Build-Windows-Setup.ps1
+      - name: Upload Windows Setup installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aura-Player-Windows-Setup-x64
+          path: release/*-Setup-*-x64.exe
+          if-no-files-found: error
+          compression-level: 0

@@ -84,82 +84,27 @@ sudo apt install ./release/*.deb
 
 اگر چند فایل DEB در پوشه وجود دارد، نام فایل موردنظر را به‌جای wildcard قرار بده. DEB برای Fedora نیست؛ در Fedora از AppImage استفاده کن.
 
-## 3) ساخت Windows Setup
+## 3) ساخت Windows Setup بدون نصب ابزار روی کامپیوتر توسعه‌دهنده
 
-این مرحله را روی **Windows 10/11 x64** انجام بده. PowerShell را با دسترسی Administrator باز کن.
+برای ساخت فایل نصبی ویندوز لازم نیست روی کامپیوتر خودت Node.js، Visual Studio، CMake، MinGW، SDL2 یا MPV نصب کنی. پروژه را در GitHub قرار بده و از مسیر **GitHub → Actions → Windows installer → Run workflow** ساخت را اجرا کن. GitHub یک Windows runner موقت می‌سازد، ابزارهای کامپایل را فقط همان‌جا آماده می‌کند، موتور native و وابستگی‌های DLL را بررسی می‌کند و در پایان فایل NSIS را به‌صورت Artifact تحویل می‌دهد.
 
-### نصب خودکار ابزارهای اصلی
+### مراحل انتشار
 
-وجود `winget` لازم است. این دستورات Node.js LTS، CMake، Git و Visual Studio 2022 C++ Build Tools را نصب می‌کنند:
+1. محتوای پروژه را در repository خودت commit و push کن.
+2. در GitHub وارد تب **Actions** شو.
+3. Workflow با نام **Windows installer** را انتخاب کن.
+4. **Run workflow** را اجرا کن.
+5. پس از موفقیت job ویندوز، Artifact با نام `Aura-Player-Windows-Setup-x64` را دانلود کن. داخل آن فایل `Aura Player-Setup-2.5.13-x64.exe` قرار می‌گیرد.
 
-```powershell
-winget install --exact --id OpenJS.NodeJS.LTS --source winget
-winget install --exact --id Kitware.CMake --source winget
-winget install --exact --id Git.Git --source winget
-winget install --exact --id Microsoft.VisualStudio.2022.BuildTools --source winget --override "--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-```
+Workflow از نسخهٔ رسمی LGPL ویندوزی libmpv استفاده می‌کند و SHA-256 آرشیو SDK را قبل از استخراج بررسی می‌کند. SDL2 و ابزارهای کامپایل در Windows runner آماده می‌شوند؛ DLLهای runtime موردنیاز در `native/dist` جمع‌آوری و داخل Setup قرار می‌گیرند. Node، CMake، MinGW، Visual Studio، MPV و SDL2 ابزارهای ساخت هستند، نه پیش‌نیاز کاربر نهایی.
 
-بعد از پایان نصب، PowerShell را ببند و دوباره باز کن. بررسی:
+ساخت پیش از بسته‌بندی تست‌ها، فهرست decoderهای موردنیاز و وابستگی‌های DLL را بررسی می‌کند. اگر dependency ناشناخته یا codec لازم وجود نداشته باشد، job شکست می‌خورد و Artifact ناقص منتشر نمی‌شود.
 
-```powershell
-node --version
-npm --version
-cmake --version
-git --version
-```
-
-### SDL2 و libmpv موردنیاز
-
-SDL2 را می‌توان با vcpkg نصب کرد:
-
-```powershell
-$env:VCPKG_ROOT = "$env:USERPROFILE\vcpkg"
-git clone https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
-& "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
-& "$env:VCPKG_ROOT\vcpkg.exe" install sdl2:x64-windows
-$env:SDL2_DIR = "$env:VCPKG_ROOT\installed\x64-windows\share\sdl2"
-```
-
-**libmpv SDK ویندوز جداگانه لازم است و با فرمان‌های بالا نصب نمی‌شود.** یک بستهٔ x64 سازگار تهیه کن که هدرها، import library، DLL اصلی و تمام DLLهای وابستهٔ FFmpeg/کدک را از همان build داشته باشد. فایل‌ها را از buildهای مختلف با هم ترکیب نکن.
-
-ساختار مورد انتظار:
-
-```text
-C:\SDK\mpv-dev\
-  include\mpv\client.h
-  lib\libmpv-2.lib
-  bin\libmpv-2.dll
-  bin\SDL2.dll
-  bin\(سایر DLLهای وابسته)
-```
-
-پس از نصب SDL2 با vcpkg، DLL آن را در پوشهٔ runtime بالا کپی کن:
-
-```powershell
-New-Item -ItemType Directory -Force C:\SDK\mpv-dev\bin | Out-Null
-Copy-Item "$env:VCPKG_ROOT\installed\x64-windows\bin\SDL2.dll" "C:\SDK\mpv-dev\bin\SDL2.dll" -Force
-```
-
-### ساخت Setup.exe
-
-فایل ZIP پروژه را استخراج کن، PowerShell را در پوشه‌ای باز کن که `package.json` و پوشهٔ `scripts` دارد و اجرا کن:
-
-```powershell
-$env:AURA_MPV_SDK_ROOT = 'C:\SDK\mpv-dev'
-$env:SDL2_DIR = "$env:VCPKG_ROOT\installed\x64-windows\share\sdl2"
-
-.\scripts\Build-Windows-Setup.ps1
-```
-
-اسکریپت پیش‌نیازها و SDK را بررسی می‌کند، وابستگی‌های npm و تست‌ها را اجرا می‌کند، موتور native را می‌سازد و فقط NSIS Setup تولید می‌کند. خروجی:
-
-```text
-release\Aura Player-Setup-2.5.13-x64.exe
-```
+> در این محیط فعلی فایل EXE ویندوز تولید نشده؛ برای تولید واقعی باید Workflow روی Windows runner اجرا شود. فایل ZIP سورس به‌تنهایی نصب‌کننده نیست.
 
 ## 4) نصب و استفاده در Windows
 
-برای کاربر نهایی فقط Setup لازم است؛ نیازی به نصب Node.js، CMake، Visual Studio، SDL2 یا MPV جداگانه نیست.
+برای کاربر نهایی فقط Setup لازم است؛ Node.js، npm، CMake، MinGW، Visual Studio، SDL2، libmpv و FFmpeg به‌صورت جداگانه نصب نمی‌شوند. برنامه موتور و DLLهای runtime خود را از پوشهٔ resources خودش بارگذاری می‌کند. درایور گرافیک/صوت و مؤلفه‌های سیستمی ویندوز همچنان متعلق به خود ویندوز هستند.
 
 1. روی `Aura Player-Setup-2.5.13-x64.exe` دوبار کلیک کن.
 2. اجازهٔ Administrator را تأیید کن.
@@ -170,24 +115,24 @@ release\Aura Player-Setup-2.5.13-x64.exe
 
 در GNOME نیز روی ویدیو راست‌کلیک → **Open With** → Aura Player را انتخاب کن و در صورت نمایش، آن را Default قرار بده.
 
-## 5) ساخت خودکار با GitHub Actions
+## 5) جزئیات ساخت خودکار و محل ذخیره‌سازی
 
-Workflow در `.github/workflows/desktop-release.yml` است و دو runner مستقل دارد: Linux برای AppImage/DEB و Windows برای Setup. برای job ویندوز باید دو Repository Secret تنظیم شود:
-
-- `AURA_MPV_SDK_URL`: آدرس دانلود مستقیم آرشیو SDK بومی Windows x64
-- `AURA_MPV_SDK_SHA256`: هش SHA-256 همان آرشیو
-
-آرشیو باید ساختار `mpv/include`، `mpv/lib`، `mpv/bin` و `sdl2/cmake` را مطابق Workflow داشته باشد. سپس از GitHub → Actions → **Desktop builds** گزینهٔ **Run workflow** را اجرا کن.
+- ساخت Windows فقط روی runner ویندوز GitHub اجرا می‌شود؛ ابزارهای کامپایل روی رایانهٔ توسعه‌دهنده نصب نمی‌شوند.
+- دانلود SDK و نصب ابزارهای ساخت فقط هنگام Build انجام می‌شود. خود برنامه در زمان اجرا برای بارگذاری موتور پخش به اینترنت، Node.js، npm، Python، CMake، MPV یا SDL2 سیستم وابسته نیست.
+- فایل‌های اجرایی و DLLهای native داخل `resources/native` نصب می‌شوند. تنظیمات Chromium/Electron و cache تصاویر بندانگشتی در مسیر استاندارد دادهٔ کاربر ویندوز ذخیره می‌شوند تا برنامه برای نوشتن داخل `Program Files` به مجوز Administrator نیاز نداشته باشد.
+- برای Windows 10/11 x64 ساخته می‌شود. درایور گرافیک/صوت و کتابخانه‌های سیستمی خود ویندوز جزو runtime قابل‌جایگزینی برنامه نیستند.
+- Artifact فقط پس از عبور تست‌ها، بررسی decoderها و audit وابستگی‌های DLL آپلود می‌شود.
+- فایل Setup در این پیکربندی امضای کد تجاری ندارد؛ ممکن است Windows SmartScreen هنگام اولین اجرا هشدار ناشر ناشناس نشان دهد.
 
 ## 6) عیب‌یابی سریع
 
 | خطا | اقدام |
 |---|---|
 | `libfuse.so.2` در Fedora | `sudo dnf install fuse-libs` |
-| `node` یا `npm` پیدا نشد | Node.js را نصب و ترمینال را دوباره باز کن |
-| `mpv/client.h` یا `libmpv-2.lib` پیدا نشد | مسیر و کامل‌بودن SDK ویندوز را بررسی کن |
-| `SDL2Config.cmake` پیدا نشد | مقدار `SDL2_DIR` را روی پوشهٔ `share\sdl2` بگذار |
-| کمبود DLL هنگام اجرا | تمام DLLهای وابستهٔ همان build از libmpv را کنار runtime قرار بده |
+| ساخت به‌دلیل نبود `node` یا `npm` متوقف شد | مرحلهٔ Setup در Workflow از Node.js روی runner استفاده می‌کند؛ اجرای محلی اسکریپت بدون Node پشتیبانی نمی‌شود |
+| `mpv/client.h` یا import library پیدا نشد | دانلود/استخراج SDK در مرحلهٔ Prepare را بررسی کن؛ build تا رفع مشکل متوقف می‌شود |
+| `SDL2Config.cmake` پیدا نشد | نصب بستهٔ SDL2 در مرحلهٔ MSYS2 و مسیر UCRT64 runner را بررسی کن |
+| وابستگی DLL حل‌نشده | Build عمداً قبل از تولید Installer متوقف می‌شود؛ dependency گزارش‌شده باید به runtime closure اضافه شود |
 | آیکون قدیمی در Dock | Favorite قدیمی را حذف و Launcher جدید را دوباره Pin کن |
 | تست یا ساخت شکست خورد | اولین خطای واقعی را بررسی کن؛ فایل ناقص `release/` نصب‌کنندهٔ معتبر نیست |
 
@@ -202,7 +147,7 @@ Workflow در `.github/workflows/desktop-release.yml` است و دو runner مس
 
 ## منابع فنی
 
-- [Microsoft: نصب Visual Studio Build Tools از خط فرمان](https://learn.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio)
-- [Microsoft: شناسهٔ Workload توسعهٔ C++](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools)
-- [vcpkg](https://github.com/microsoft/vcpkg)
-- [mpv: ساخت libmpv برای Windows](https://github.com/mpv-player/mpv/blob/master/DOCS/compile-windows.md)
+- [mpv 0.42.0 — Windows libmpv LGPL build](https://github.com/mpv-player/mpv/releases/tag/v0.42.0)
+- [MSYS2 UCRT64 SDL2 package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-SDL2)
+- [MSYS2 setup action](https://github.com/msys2/setup-msys2)
+- [Electron Builder — NSIS](https://www.electron.build/nsis)
