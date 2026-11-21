@@ -76,9 +76,16 @@ function createMainWindow() {
     assertTrustedRenderer,
   });
 
+  // Warm up SDL/OpenGL and libmpv while Chromium loads the UI. Opening the
+  // first file then only sends a load command instead of spawning the renderer.
+  void embeddedMpv.prewarm({ width: 1280, height: 720 }).catch((error) => {
+    console.warn('[Aura Player] Native prewarm unavailable; playback will initialize on demand:', error?.message || error);
+  });
+
   rendererReady = false;
   mainWindow.webContents.once('did-finish-load', () => {
     rendererReady = true;
+    embeddedMpv?.attachFrameTarget('main', mainWindow);
     flushPendingMediaFiles();
   });
   mainWindow.once('ready-to-show', () => mainWindow?.show());
