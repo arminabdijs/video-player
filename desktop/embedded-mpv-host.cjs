@@ -43,7 +43,8 @@ class EmbeddedMpvHost {
     this.assertTrustedRenderer = assertTrustedRenderer;
     this.child = null;
     this.port = null;
-    this.frameWindows = new Map([['main', window]]);
+    // Attach renderer ports only after the window preload is ready.
+    this.frameWindows = new Map();
     this.stdoutChunks = [];
     this.stdoutBytes = 0;
     this.pendingFrameHeader = null;
@@ -66,6 +67,7 @@ class EmbeddedMpvHost {
     this.activeSession = null;
     this.stopPromise = null;
     this.startQueue = Promise.resolve();
+    this.prewarmPromise = null;
   }
 
   resolveHelperPath() {
@@ -155,6 +157,39 @@ class EmbeddedMpvHost {
     return true;
   }
 
+  prewarm(requestedSize = {}) {
+    if (this.prewarmPromise) return this.prewarmPromise;
+    if (this.activeSession?.isWarmup && this.activeSession.child && !this.activeSession.child.killed) {
+      return this.waitForSessionReady(this.activeSession).then(() => ({ started: true, prewarmed: true }));
+    }
+
+    const operation = this.startQueue.then(
+      () => this.startSession(null, null, 0, requestedSize, true),
+      () => this.startSession(null, null, 0, requestedSize, true),
+    );
+    this.startQueue = operation.catch(() => {});
+    this.prewarmPromise = operation.catch((error) => {
+      this.prewarmPromise = null;
+      throw error;
+    });
+    return this.prewarmPromise;
+  }
+
+  waitForSessionReady(session, timeoutMs = 15_000) {
+    if (!session) return Promise.reject(new Error('Native warmup session is unavailable.'));
+    if (session.ready) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('آماده‌سازی اولیه موتور پخش بیش از حد طول کشید.')), timeoutMs);
+      session.readyPromise.then(() => {
+        clearTimeout(timeout);
+        resolve();
+      }, (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+  }
+
   start(event, filePath, requestedStartTime = 0, requestedSize = {}) {
     const operation = this.startQueue.then(
       () => this.startSession(event, filePath, requestedStartTime, requestedSize),
@@ -164,23 +199,33 @@ class EmbeddedMpvHost {
     return operation;
   }
 
-  async startSession(event, filePath, requestedStartTime = 0, requestedSize = {}) {
+  async startSession(event, filePath, requestedStartTime = 0, requestedSize = {}, warmup = false) {
     if (event) this.assertRenderer(event);
-    if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
+    if (!warmup && (typeof filePath !== 'string' || !path.isAbsolute(filePath))) {
       throw new TypeError('The media path must be an absolute local path.');
     }
-    const info = await fs.promises.stat(filePath).catch(() => null);
-    if (!info?.isFile()) throw new Error('فایل انتخاب‌شده دیگر وجود ندارد یا فایل معتبر نیست.');
+    if (!warmup) {
+      const info = await fs.promises.stat(filePath).catch(() => null);
+      if (!info?.isFile()) throw new Error('فایل انتخاب‌شده دیگر وجود ندارد یا فایل معتبر نیست.');
+
+      const existing = this.activeSession;
+      if (existing?.isWarmup && existing.child && !existing.child.killed) {
+        await this.waitForSessionReady(existing);
+        if (this.activeSession === existing && existing.child && !existing.child.killed) {
+          return this.loadIntoWarmSession(existing, filePath, requestedStartTime, requestedSize);
+        }
+      }
+    }
 
     await this.stop();
     const { executable, runtimeDirectory } = this.resolveHelperPath();
     const startTime = Number.isFinite(Number(requestedStartTime))
       ? Math.max(0, Math.min(Number(requestedStartTime), 7 * 24 * 60 * 60))
       : 0;
-    // Cap CPU readback/IPC bandwidth. libmpv still decodes at source resolution;
-    // only the frame copied into Chromium is scaled to this presentation ceiling.
-    const width = Math.max(480, Math.min(MAX_RENDER_WIDTH, Math.round(Number(requestedSize.width) || 1920)));
-    const height = Math.max(270, Math.min(MAX_RENDER_HEIGHT, Math.round(Number(requestedSize.height) || 1080)));
+    // Warmup allocates only a small initial FBO. The requested viewport size
+    // is sent again before the real file is loaded.
+    const width = warmup ? 640 : Math.max(480, Math.min(MAX_RENDER_WIDTH, Math.round(Number(requestedSize.width) || 1920)));
+    const height = warmup ? 360 : Math.max(270, Math.min(MAX_RENDER_HEIGHT, Math.round(Number(requestedSize.height) || 1080)));
 
     this.stdoutChunks = [];
     this.stdoutBytes = 0;
@@ -199,6 +244,13 @@ class EmbeddedMpvHost {
     this.thumbnailPromises = new Map();
     this.thumbnailWriteCount = 0;
 
+    let resolveReady;
+    let rejectReady;
+    const readyPromise = new Promise((resolve, reject) => {
+      resolveReady = resolve;
+      rejectReady = reject;
+    });
+    readyPromise.catch(() => {});
     const session = {
       id: ++this.sessionSequence,
       port: null,
@@ -206,6 +258,11 @@ class EmbeddedMpvHost {
       pendingFrameAcks: new Set(),
       child: null,
       stopRequested: false,
+      isWarmup: warmup,
+      ready: false,
+      readyPromise,
+      resolveReady,
+      rejectReady,
     };
     this.activeSession = session;
     this.port = null;
@@ -222,12 +279,10 @@ class EmbeddedMpvHost {
       env.LD_LIBRARY_PATH = `${libraryDirectory}${path.delimiter}${env.LD_LIBRARY_PATH || ''}`;
     }
 
-    const child = spawn(executable, [
-      '--file', filePath,
-      '--start', String(startTime),
-      '--width', String(width),
-      '--height', String(height),
-    ], {
+    const argumentsList = warmup
+      ? ['--warmup', '--width', String(width), '--height', String(height)]
+      : ['--file', filePath, '--start', String(startTime), '--width', String(width), '--height', String(height)];
+    const child = spawn(executable, argumentsList, {
       cwd: runtimeDirectory,
       env,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -246,6 +301,7 @@ class EmbeddedMpvHost {
       if (this.activeSession === session) this.consumeStatus(chunk);
     });
     child.once('error', (error) => {
+      session.rejectReady(error);
       if (this.activeSession !== session) return;
       this.sendState({ type: 'error', message: error.message || 'Could not launch the embedded media engine.' });
       if (child.pid == null) {
@@ -255,6 +311,7 @@ class EmbeddedMpvHost {
       }
     });
     child.once('exit', (code, signal) => {
+      session.rejectReady(new Error(`موتور پخش پیش از آماده‌شدن خارج شد (کد ${code ?? 'نامشخص'}).`));
       const reportAsUnexpected = shouldReportProcessExit(session, this.activeSession);
       if (this.activeSession === session) {
         this.activeSession = null;
@@ -283,7 +340,44 @@ class EmbeddedMpvHost {
       child.once('error', onError);
     });
 
+    if (warmup) {
+      await this.waitForSessionReady(session);
+      console.info('[Aura Player] Native video engine is warmed and ready for instant file loading.');
+      return { started: true, prewarmed: true, engine: 'libmpv-render-host' };
+    }
+
     return { started: true, engine: 'libmpv-render-host' };
+  }
+
+  loadIntoWarmSession(session, filePath, requestedStartTime = 0, requestedSize = {}) {
+    const child = session?.child;
+    if (!child || child.killed || !child.stdin.writable) {
+      throw new Error('موتور آماده‌شده دیگر در دسترس نیست.');
+    }
+    const encodedPath = Buffer.from(filePath, 'utf8').toString('hex');
+    if (!encodedPath || encodedPath.length > 32_768) {
+      throw new TypeError('مسیر فایل ویدئو بیش از اندازه مجاز است.');
+    }
+    const startTime = Number.isFinite(Number(requestedStartTime))
+      ? Math.max(0, Math.min(Number(requestedStartTime), 7 * 24 * 60 * 60))
+      : 0;
+    const width = Math.max(480, Math.min(MAX_RENDER_WIDTH, Math.round(Number(requestedSize.width) || 1920)));
+    const height = Math.max(270, Math.min(MAX_RENDER_HEIGHT, Math.round(Number(requestedSize.height) || 1080)));
+
+    this.latestFrame = null;
+    this.lastEngineError = '';
+    for (const [targetId, targetWindow] of this.frameWindows) {
+      if (!session.ports.has(targetId)) this.attachSessionFramePort(session, targetId, targetWindow);
+    }
+
+    child.stdin.write(`resize ${width} ${height}\n`);
+    child.stdin.write(`frames-enabled ${this.frameOutputEnabled ? 1 : 0}\n`);
+    child.stdin.write(`load-file-hex ${encodedPath} ${startTime}\n`);
+    session.isWarmup = false;
+    session.filePath = filePath;
+    this.prewarmPromise = null;
+    console.info('[Aura Player] Reusing the warmed native engine; loading media without another process or GPU initialization.');
+    return { started: true, reusedWarmup: true, engine: 'libmpv-render-host' };
   }
 
   async generateThumbnail(event, filePath, requestedTime = 0.0) {
@@ -552,7 +646,13 @@ class EmbeddedMpvHost {
         this.sendState({ type: 'state', ...this.parseKeyValues(line.slice(11)) });
       } else if (line.startsWith('AURA_EVENT ')) {
         const parsed = this.parseKeyValues(line.slice(11));
-        if (parsed.type === 'hwdec-interop-policy') {
+        if (parsed.type === 'ready') {
+          const session = this.activeSession;
+          if (session && !session.ready) {
+            session.ready = true;
+            session.resolveReady();
+          }
+        } else if (parsed.type === 'hwdec-interop-policy') {
           console.info('[Aura Player] Hardware-decoder interop: libmpv automatic discovery; hwdec=auto-safe');
         } else if (parsed.type === 'hwdec-current') {
           console.info(`[Aura Player] Active video decoder: ${parsed.detail || 'unknown'}`);
