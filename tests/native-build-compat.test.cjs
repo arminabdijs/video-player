@@ -7,6 +7,7 @@ const { ensureNativeRuntime } = require('../scripts/build-linux-packages.cjs');
 const root = path.resolve(__dirname, '..');
 const nativeSource = fs.readFileSync(path.join(root, 'native/mpv-frame-host/main.cpp'), 'utf8');
 const packageScript = fs.readFileSync(path.join(root, 'scripts/build-linux-packages.cjs'), 'utf8');
+const nativeBuildScript = fs.readFileSync(path.join(root, 'scripts/build-native-engine.cjs'), 'utf8');
 
 
 test('libmpv OpenGL init is compatible with current two-field headers and older headers', () => {
@@ -51,4 +52,8 @@ test('libmpv uses build-compatible automatic hwdec interop instead of forcing de
   assert.doesNotMatch(nativeSource, /setOption\("gpu-hwdec-interop"/);
   assert.doesNotMatch(nativeSource, /preferredLinuxHwdecInterop/);
   assert.doesNotMatch(nativeSource, /return \"vaapi-egl\"|return \"vaapi-glx\"/);
+});
+
+test('Windows PE dependency audit allows large objdump metadata output', () => {
+  assert.match(nativeBuildScript, /spawnSync\('objdump',\s*\['-p', executable\],\s*\{[\s\S]*?maxBuffer:\s*32\s*\*\s*1024\s*\*\s*1024/);
 });
