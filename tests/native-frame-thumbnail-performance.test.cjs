@@ -53,10 +53,10 @@ test('native helper can decode a single poster frame without Chromium video deco
 });
 
 
-test('native frame loop is capped at 30 FPS and uses a single latest-frame PBO slot to reduce resource use', () => {
+test('native frame loop preserves up to 60 decoded FPS with a single latest-frame PBO slot and adaptive polling', () => {
   const source = read('native/mpv-frame-host/main.cpp');
-  assert.match(source, /constexpr int kTargetFps = 30/);
-  assert.match(source, /SDL_Delay\(8\)/);
+  assert.match(source, /constexpr int kTargetFps = 60/);
+  assert.match(source, /SDL_Delay\(outputEnabledNow && framePendingNow && !frameInFlightNow \? 1 : \(outputEnabledNow \? 4 : 8\)\)/);
   assert.match(source, /constexpr int kPboCount = 1/);
   const ring = source.match(/class PixelReadbackRing\s*\{([\s\S]*?)\n\};/);
   assert.ok(ring, 'PixelReadbackRing should exist');
@@ -69,13 +69,21 @@ test('native frame loop is capped at 30 FPS and uses a single latest-frame PBO s
   assert.match(source, /frameOutputEnabled && frameSlotAvailable && frameDue &&\s*g_frameDirty\.exchange\(false/);
 });
 
-test('desktop local files use libmpv first and retain browser fallback', () => {
+test('desktop local files prefer measured power-efficient browser decoding and retain libmpv fallback', () => {
   const source = read('scripts/script.js');
+  const host = read('desktop/embedded-mpv-host.cjs');
+  const native = read('native/mpv-frame-host/main.cpp');
   assert.match(source, /async function startNativeDesktopPlayback\(/);
-  assert.match(source, /Desktop uses libmpv first/);
-  assert.match(source, /if \(desktop\?\.isDesktop && typeof desktop\.startEmbeddedMpv === 'function'\)/);
-  assert.match(source, /Native-first playback failed; using browser fallback/);
-  assert.match(source, /activeObjectURL = URL\.createObjectURL\(item\.file\)/);
+  assert.match(source, /navigator\.mediaCapabilities\.decodingInfo/);
+  assert.match(source, /result\?\.supported && result\.smooth && result\.powerEfficient/);
+  assert.match(source, /startBrowserDesktopPlayback\(item, browserProfile, desiredRate\)/);
+  assert.match(source, /tryDesktopMpvFallback\(\)/);
+  assert.match(source, /item\.externalPath \? item\.browserUrl : URL\.createObjectURL\(item\.file\)/);
+  assert.match(native, /setOption\("hwdec", "d3d11va-copy,auto-safe"\)/);
+  assert.match(native, /setOption\("hwdec-software-fallback", "yes"\)/);
+  assert.match(native, /setQualityOption\("vd-lavc-threads", "0"\)/);
+  assert.doesNotMatch(read('desktop/main.cjs'), /embeddedMpv\.prewarm\(/);
+  assert.match(host, /attachSessionFramePort/);
 });
 
 test('desktop native posters are persisted locally and bounded by a cache entry limit', () => {
@@ -219,29 +227,16 @@ test('native helper joins its command reader after the host closes stdin', () =>
   assert.doesNotMatch(native, /reader\.detach\(\)/);
 });
 
-test('desktop prewarms libmpv and OpenGL during window loading, then loads the first file into the ready process', () => {
+test('native fallback is lazy and PiP does not duplicate full-rate frame copies into the dimmed main player', () => {
   const main = read('desktop/main.cjs');
-  const host = read('desktop/embedded-mpv-host.cjs');
-  const native = read('native/mpv-frame-host/main.cpp');
   const script = read('scripts/script.js');
+  const native = read('native/mpv-frame-host/main.cpp');
 
-  assert.match(main, /embeddedMpv\.prewarm\(\{ width: 1280, height: 720 \}\)/);
-  assert.match(main, /did-finish-load'[\s\S]*?attachFrameTarget\('main', mainWindow\)[\s\S]*?flushPendingMediaFiles/);
-  assert.match(host, /prewarm\(requestedSize = \{\}\)/);
-  assert.match(host, /readyPromise/);
-  assert.match(host, /session\.resolveReady\(\)/);
-  assert.match(host, /loadIntoSession\(existing, filePath, requestedStartTime, requestedSize\)/);
-  assert.match(host, /load-file-hex \$\{encodedPath\} \$\{startTime\}/);
-  assert.match(host, /Reusing the existing native engine/);
-  assert.match(script, /commandEmbeddedMpv\(\{ type: 'pause' \}\)/);
-  assert.doesNotMatch(script, /stopMpv/);
-  assert.match(script, /if \(generation !== playbackGeneration\) \{[\s\S]*?Never tear the shared engine down from a stale start/);
-  assert.match(native, /mpv_set_property_string\(mpv, "pause", "no"\)/);
-  assert.match(native, /bool warmup = false/);
-  assert.match(native, /arg == "--warmup"/);
-  assert.match(native, /if \(!options\.warmup\)[\s\S]*?mpv_command\(mpv, loadArgs\)/);
-  assert.match(native, /command == "load-file-hex"/);
-  assert.match(native, /g_seekOnFileLoaded\.store/);
-  assert.match(native, /g_seekOnFileLoaded\.exchange/);
-  assert.match(native, /const std::uint64_t requestedSize = g_requestedSize\.exchange/);
+  assert.doesNotMatch(main, /embeddedMpv\.prewarm\(/);
+  assert.match(script, /startNativeDesktopPlayback\(item, playbackGeneration\)/);
+  assert.match(main, /embeddedMpv\.detachFrameTarget\('main'\)/);
+  assert.match(main, /embeddedMpv\?\.attachFrameTarget\('main', mainWindow\)/);
+  assert.match(native, /kTargetFps = 60/);
+  assert.match(native, /const bool outputEnabledNow = g_frameOutputEnabled/);
+  assert.match(native, /const bool framePendingNow = g_frameDirty/);
 });
