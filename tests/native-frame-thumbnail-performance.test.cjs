@@ -240,3 +240,13 @@ test('native fallback is lazy and PiP does not duplicate full-rate frame copies 
   assert.match(native, /const bool outputEnabledNow = g_frameOutputEnabled/);
   assert.match(native, /const bool framePendingNow = g_frameDirty/);
 });
+
+
+test('browser playback is monitored for real dropped frames and switches to libmpv when visibly stalling', () => {
+  const script = read('scripts/script.js');
+  assert.match(script, /navigator\.mediaCapabilities\.decodingInfo/);
+  assert.match(script, /const droppedRatio = decodedFrames > 0 \? droppedFrames \/ decodedFrames : 0/);
+  assert.match(script, /decodedFrames >= 90 && droppedRatio >= 0\.18/);
+  assert.match(script, /tryDesktopMpvFallback\(\)/);
+  assert.match(script, /startVideoFrameWatchdog\(\)[\s\S]*?\}, 5000\)/);
+});
