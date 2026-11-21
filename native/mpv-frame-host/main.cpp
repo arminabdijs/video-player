@@ -309,7 +309,10 @@ void executeCommand(mpv_handle *mpv, const std::string &line) {
     const char *args[] = {"loadfile", filePath.c_str(), "replace", nullptr};
     const int result = mpv_command(mpv, args);
     if (result < 0) emitEvent("error", mpv_error_string(result));
-    else emitEvent("opening-media");
+    else {
+      mpv_set_property_string(mpv, "pause", "no");
+      emitEvent("opening-media");
+    }
   }
   else if (command == "play") mpv_set_property_string(mpv, "pause", "no");
   else if (command == "pause") mpv_set_property_string(mpv, "pause", "yes");
