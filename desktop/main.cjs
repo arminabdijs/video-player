@@ -10,6 +10,14 @@ const APP_ROOT = app.getAppPath();
 let mainWindow = null;
 let pipWindow = null;
 let pipResizeTimer = null;
+let pipResizeState = null;
+let lastPipBounds = null;
+
+const PIP_MIN_WIDTH = 320;
+const PIP_MIN_HEIGHT = 180;
+const PIP_MAX_WIDTH = 960;
+const PIP_MAX_HEIGHT = 640;
+const PIP_RESIZE_DIRECTIONS = new Set(['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']);
 let mainFrameTargetDetached = false;
 let embeddedMpv = null;
 let isQuitting = false;
@@ -123,6 +131,106 @@ function createMainWindow() {
   void mainWindow.loadFile(path.join(APP_ROOT, 'index.html'));
 }
 
+function clampPipValue(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, Math.round(Number(value) || minimum)));
+}
+
+function getInitialPipBounds() {
+  if (!lastPipBounds) return { width: 480, height: 270 };
+
+  const width = clampPipValue(lastPipBounds.width, PIP_MIN_WIDTH, PIP_MAX_WIDTH);
+  const height = clampPipValue(lastPipBounds.height, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT);
+  const candidate = {
+    x: Math.round(Number(lastPipBounds.x) || 0),
+    y: Math.round(Number(lastPipBounds.y) || 0),
+    width,
+    height,
+  };
+  const display = screen.getDisplayMatching(candidate);
+  const area = display.workArea || display.bounds;
+  const maxX = Math.max(area.x, area.x + area.width - width);
+  const maxY = Math.max(area.y, area.y + area.height - height);
+
+  return {
+    ...candidate,
+    x: Math.max(area.x, Math.min(maxX, candidate.x)),
+    y: Math.max(area.y, Math.min(maxY, candidate.y)),
+  };
+}
+
+function rememberPipBounds(window = pipWindow) {
+  if (!window || window.isDestroyed()) return;
+  const bounds = window.getBounds();
+  lastPipBounds = {
+    x: Math.round(bounds.x),
+    y: Math.round(bounds.y),
+    width: clampPipValue(bounds.width, PIP_MIN_WIDTH, PIP_MAX_WIDTH),
+    height: clampPipValue(bounds.height, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT),
+  };
+}
+
+function beginNativePipResize(event, payload) {
+  assertTrustedPipRenderer(event);
+  if (!pipWindow || pipWindow.isDestroyed() ||
+      !PIP_RESIZE_DIRECTIONS.has(payload?.direction)) return false;
+
+  const screenX = Number(payload.screenX);
+  const screenY = Number(payload.screenY);
+  if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return false;
+
+  pipResizeState = {
+    direction: payload.direction,
+    pointerX: screenX,
+    pointerY: screenY,
+    bounds: pipWindow.getBounds(),
+  };
+  return true;
+}
+
+function updateNativePipResize(event, payload) {
+  assertTrustedPipRenderer(event);
+  if (!pipResizeState || !pipWindow || pipWindow.isDestroyed()) return;
+
+  const screenX = Number(payload?.screenX);
+  const screenY = Number(payload?.screenY);
+  if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return;
+
+  const state = pipResizeState;
+  const deltaX = screenX - state.pointerX;
+  const deltaY = screenY - state.pointerY;
+  const { x: originalX, y: originalY, width: originalWidth, height: originalHeight } = state.bounds;
+  let x = originalX;
+  let y = originalY;
+  let width = originalWidth;
+  let height = originalHeight;
+
+  if (state.direction.includes('e')) {
+    width = clampPipValue(originalWidth + deltaX, PIP_MIN_WIDTH, PIP_MAX_WIDTH);
+  } else if (state.direction.includes('w')) {
+    width = clampPipValue(originalWidth - deltaX, PIP_MIN_WIDTH, PIP_MAX_WIDTH);
+    x = originalX + originalWidth - width;
+  }
+
+  if (state.direction.includes('s')) {
+    height = clampPipValue(originalHeight + deltaY, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT);
+  } else if (state.direction.includes('n')) {
+    height = clampPipValue(originalHeight - deltaY, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT);
+    y = originalY + originalHeight - height;
+  }
+
+  const current = pipWindow.getBounds();
+  if (current.x !== x || current.y !== y || current.width !== width || current.height !== height) {
+    pipWindow.setBounds({ x, y, width, height });
+    rememberPipBounds(pipWindow);
+  }
+}
+
+function endNativePipResize(event) {
+  assertTrustedPipRenderer(event);
+  pipResizeState = null;
+  rememberPipBounds(pipWindow);
+}
+
 async function openNativePictureInPicture(event) {
   assertTrustedRenderer(event);
   if (!embeddedMpv?.activeSession || !embeddedMpv.child || embeddedMpv.child.killed) {
@@ -136,13 +244,13 @@ async function openNativePictureInPicture(event) {
     return { active: true };
   }
 
+  const restoredBounds = getInitialPipBounds();
   const window = new BrowserWindow({
-    width: 480,
-    height: 270,
-    minWidth: 320,
-    minHeight: 180,
-    maxWidth: 960,
-    maxHeight: 640,
+    ...restoredBounds,
+    minWidth: PIP_MIN_WIDTH,
+    minHeight: PIP_MIN_HEIGHT,
+    maxWidth: PIP_MAX_WIDTH,
+    maxHeight: PIP_MAX_HEIGHT,
     useContentSize: true,
     backgroundColor: '#08090d',
     show: false,
@@ -174,7 +282,11 @@ async function openNativePictureInPicture(event) {
   };
   window.on('blur', keepOnTop);
   window.on('show', keepOnTop);
-  window.on('resize', schedulePipRenderResize);
+  window.on('move', () => rememberPipBounds(window));
+  window.on('resize', () => {
+    rememberPipBounds(window);
+    schedulePipRenderResize();
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (navigationEvent, targetUrl) => {
     if (!isTrustedApplicationDocument(targetUrl, path.join(__dirname, 'pip.html'))) {
@@ -182,6 +294,8 @@ async function openNativePictureInPicture(event) {
     }
   });
   window.on('closed', () => {
+    rememberPipBounds(window);
+    pipResizeState = null;
     if (pipResizeTimer) {
       clearTimeout(pipResizeTimer);
       pipResizeTimer = null;
@@ -305,6 +419,15 @@ function registerEmbeddedMpvIpc() {
   ipcMain.handle('aura:desktop-pip-set', (event, active) => {
     assertTrustedRenderer(event);
     return active ? openNativePictureInPicture(event) : closeNativePictureInPicture();
+  });
+  ipcMain.on('aura:pip-resize-start', (event, payload) => {
+    beginNativePipResize(event, payload);
+  });
+  ipcMain.on('aura:pip-resize-update', (event, payload) => {
+    updateNativePipResize(event, payload);
+  });
+  ipcMain.on('aura:pip-resize-end', (event) => {
+    endNativePipResize(event);
   });
   ipcMain.handle('aura:pip-command', (event, command) => {
     assertTrustedPipRenderer(event);
