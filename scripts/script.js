@@ -2494,8 +2494,11 @@ function returnToExplorer(pauseVideo = true) {
   if (desktopPiPActive) void window.auraDesktop?.setNativePictureInPicture(false).catch(() => {});
   setEmbeddedMpvActive(false);
 
-  if (window.auraDesktop?.isDesktop && typeof window.auraDesktop.stopMpv === 'function') {
-    void window.auraDesktop.stopMpv().catch(() => {});
+  // Keep the initialized libmpv process alive between files, but do not
+  // continue audible playback after leaving the player workspace.
+  if (pauseVideo && window.auraDesktop?.isDesktop &&
+      typeof window.auraDesktop.commandEmbeddedMpv === 'function') {
+    void window.auraDesktop.commandEmbeddedMpv({ type: 'pause' }).catch(() => {});
   }
 
   if (document.fullscreenElement) {
