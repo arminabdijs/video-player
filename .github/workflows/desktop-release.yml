@@ -21,11 +21,12 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install isolated UCRT64 MinGW, CMake, Ninja and SDL2 toolchain
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
-          path-type: inherit
+          path-type: minimal
           install: >-
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
@@ -38,6 +39,7 @@ jobs:
         env:
           AURA_MPV_SDK_URL: https://github.com/mpv-player/mpv/releases/download/v0.42.0/libmpv-v0.42.0-x86_64-w64-mingw32-lgpl.zip
           AURA_MPV_SDK_SHA256: 8e5f77430efc53ef175804ba6618527e3af0448a0dcabf04d3cc72659d1a6fce
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: ./scripts/Prepare-Windows-Native.ps1
       - name: Build and validate Windows installer
         shell: pwsh
