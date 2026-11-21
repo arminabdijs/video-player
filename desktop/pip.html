@@ -59,7 +59,45 @@
       padding: 5px 8px 5px 10px;
       justify-content: space-between;
       background: linear-gradient(180deg, rgba(0,0,0,.82), rgba(0,0,0,0));
+      -webkit-app-region: drag;
+      cursor: move;
     }
+    .pip-controls {
+      -webkit-app-region: no-drag;
+    }
+    .pip-resize-handle {
+      position: absolute;
+      z-index: 5;
+      display: block;
+      pointer-events: auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-app-region: no-drag;
+    }
+    .pip-resize-n, .pip-resize-s {
+      left: 14px;
+      right: 14px;
+      height: 7px;
+      cursor: ns-resize;
+    }
+    .pip-resize-n { top: 0; }
+    .pip-resize-s { bottom: 0; }
+    .pip-resize-e, .pip-resize-w {
+      top: 14px;
+      bottom: 14px;
+      width: 7px;
+      cursor: ew-resize;
+    }
+    .pip-resize-e { right: 0; }
+    .pip-resize-w { left: 0; }
+    .pip-resize-ne, .pip-resize-nw, .pip-resize-se, .pip-resize-sw {
+      width: 16px;
+      height: 16px;
+    }
+    .pip-resize-ne { top: 0; right: 0; cursor: nesw-resize; }
+    .pip-resize-nw { top: 0; left: 0; cursor: nwse-resize; }
+    .pip-resize-se { right: 0; bottom: 0; cursor: nwse-resize; }
+    .pip-resize-sw { left: 0; bottom: 0; cursor: nesw-resize; }
     .pip-controls {
       bottom: 0;
       min-height: 66px;
@@ -184,6 +222,14 @@
 </head>
 <body>
   <main class="pip-shell" aria-label="پخش‌کنندهٔ شناور Aura Player">
+    <div class="pip-resize-handle pip-resize-n" data-pip-resize="n" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-s" data-pip-resize="s" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-e" data-pip-resize="e" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-w" data-pip-resize="w" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-ne" data-pip-resize="ne" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-nw" data-pip-resize="nw" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-se" data-pip-resize="se" aria-hidden="true"></div>
+    <div class="pip-resize-handle pip-resize-sw" data-pip-resize="sw" aria-hidden="true"></div>
     <canvas id="pipCanvas" aria-label="تصویر ویدئو"></canvas>
     <div class="pip-topbar">
       <div class="pip-brand">
