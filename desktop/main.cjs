@@ -84,12 +84,6 @@ function createMainWindow() {
     assertTrustedRenderer,
   });
 
-  // Warm up SDL/OpenGL and libmpv while Chromium loads the UI. Opening the
-  // first file then only sends a load command instead of spawning the renderer.
-  void embeddedMpv.prewarm({ width: 1280, height: 720 }).catch((error) => {
-    console.warn('[Aura Player] Native prewarm unavailable; playback will initialize on demand:', error?.message || error);
-  });
-
   rendererReady = false;
   mainWindow.webContents.once('did-finish-load', () => {
     rendererReady = true;
@@ -315,6 +309,10 @@ async function openNativePictureInPicture(event) {
     embeddedMpv?.detachFrameTarget('pip');
     if (pipWindow === window) pipWindow = null;
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      if (mainFrameTargetDetached && !mainWindow.isMinimized()) {
+        embeddedMpv?.attachFrameTarget('main', mainWindow);
+        mainFrameTargetDetached = false;
+      }
       mainWindow.webContents.send('aura:pip-state', { active: false });
     }
     if (mainWindow?.isMinimized()) embeddedMpv?.setFrameOutputEnabled(false);
@@ -324,6 +322,9 @@ async function openNativePictureInPicture(event) {
     await window.loadFile(path.join(__dirname, 'pip.html'));
     if (pipWindow !== window || window.isDestroyed()) throw new Error('پنجرهٔ تصویر در تصویر بسته شد.');
     embeddedMpv.attachFrameTarget('pip', window);
+    // The main player is dimmed while PiP is active. Stop copying every frame
+    // into its hidden canvas; send one full-rate stream only to the visible PiP.
+    if (embeddedMpv.detachFrameTarget('main')) mainFrameTargetDetached = true;
     window.setAlwaysOnTop(true, 'screen-saver');
     window.showInactive();
     window.moveTop();
