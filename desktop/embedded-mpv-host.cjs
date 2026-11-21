@@ -477,13 +477,18 @@ class EmbeddedMpvHost {
       this.awaitingAck = true;
       session.pendingFrameAcks.clear();
 
+      const pipOwnsFrameCadence = session.ports.has('pip');
       for (const [id, target] of session.ports) {
         if (target.window.isDestroyed?.() || target.window.webContents?.isDestroyed?.()) {
           session.ports.delete(id);
           if (this.frameWindows.get(id) === target.window) this.frameWindows.delete(id);
           continue;
         }
-        session.pendingFrameAcks.add(id);
+        // Once PiP is open, its visible canvas owns native render cadence.
+        // The main window still receives frames, but a background/occluded
+        // renderer cannot stall the always-on-top player by delaying its ACK.
+        const mustAcknowledge = id === 'pip' || !pipOwnsFrameCadence;
+        if (mustAcknowledge) session.pendingFrameAcks.add(id);
         try {
           target.port.postMessage({
             type: 'frame',
@@ -493,7 +498,7 @@ class EmbeddedMpvHost {
             data: frameBuffer,
           });
         } catch (error) {
-          session.pendingFrameAcks.delete(id);
+          if (mustAcknowledge) session.pendingFrameAcks.delete(id);
           console.warn(`[Aura Player] Could not send a native frame to ${id}:`, error?.message || error);
         }
       }
