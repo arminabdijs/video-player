@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { fileURLToPath } = require('node:url');
+const { fileURLToPath, pathToFileURL } = require('node:url');
 
 const SUPPORTED_MEDIA_EXTENSIONS = new Set([
   '.264', '.265', '.266', '.3g2', '.3gp', '.3gpp', '.amv', '.asf', '.avi', '.av1',
@@ -57,6 +57,7 @@ function describeMediaFile(filePath, statSync = fs.statSync) {
     if (!info.isFile()) return null;
     return {
       path: candidate,
+      browserUrl: pathToFileURL(candidate).href,
       name: path.basename(candidate),
       size: Number(info.size) || 0,
       lastModified: Number.isFinite(info.mtimeMs) ? Math.trunc(info.mtimeMs) : Date.now(),
