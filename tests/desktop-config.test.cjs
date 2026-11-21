@@ -143,7 +143,7 @@ test('native host preserves full startup errors and process exit diagnostics', (
   assert.match(hostSource, /waitForChildExit\(child, 4500\)/);
   assert.match(hostSource, /child\.kill\('SIGTERM'\)/);
   assert.match(hostSource, /child\.kill\('SIGKILL'\)/);
-  assert.match(hostSource, /this\.closePort\(session\.port\)/);
+  assert.match(hostSource, /closeSessionFramePorts\(session\)/);
   assert.match(hostSource, /reason: this\.lastEngineError \|\| ''/);
   assert.match(playerSource, /const reason = typeof message\.reason === 'string'/);
   assert.match(playerSource, /موتور داخلی پخش متوقف شد: \$\{detail\}/);
