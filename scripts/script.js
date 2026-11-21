@@ -4304,6 +4304,7 @@ if (window.auraDesktop?.isDesktop) {
   window.auraDesktop.onEmbeddedMpvState(handleEmbeddedMpvState);
   window.auraDesktop.onNativePictureInPictureState((state) => {
     desktopPiPActive = Boolean(state?.active);
+    playerStage?.classList.toggle('desktop-native-pip-active', desktopPiPActive);
     pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
     if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
     if (!desktopPiPActive) requestNativeOutputResize();
