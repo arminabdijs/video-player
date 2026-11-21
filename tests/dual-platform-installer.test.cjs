@@ -41,7 +41,7 @@ test('Linux release creates AppImage and DEB; Windows release creates NSIS Setup
   assert.deepEqual(pkg.build.linux.target.map((x) => x.target), ['AppImage', 'deb']);
   assert.deepEqual(pkg.build.win.target.map((x) => x.target), ['nsis']);
   assert.equal(pkg.build.win.artifactName, '${productName}-Setup-${version}-${arch}.${ext}');
-  assert.equal(pkg.scripts['desktop:dist:windows:setup'], 'electron-builder --win nsis');
+  assert.equal(pkg.scripts['desktop:dist:windows:setup'], 'electron-builder --win nsis --publish never');
 });
 
 test('Windows release workflow provisions an isolated native toolchain and verifies the SDK bundle', () => {
