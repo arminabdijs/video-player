@@ -26,6 +26,8 @@ const videoElement = document.getElementById('video');
 const nativeVideoCanvas = document.getElementById('nativeVideoCanvas');
 const nativeVideoContext = nativeVideoCanvas?.getContext('2d', { alpha: false, desynchronized: true });
 let nativeMpvActive = false;
+let desktopPiPActive = false;
+let nativePipTogglePending = false;
 let nativeResizeRaf = 0;
 let lastNativeOutputSize = { width: 0, height: 0 };
 const nativeMpvState = {
@@ -3682,15 +3684,33 @@ function syncFullscreenUI() {
 ========================================================= */
 
 async function togglePiP() {
-  // A native libmpv frame is a Canvas, so Chromium's video PiP API cannot
-  // capture it. Provide an in-app floating mini-player instead of a dead button.
+  // Native libmpv frames need a real desktop window: Chromium's video PiP API
+  // cannot capture the Canvas, and an in-page CSS overlay cannot float over
+  // other Windows applications.
   if (nativeMpvActive) {
-    const active = playerStage.classList.toggle('is-picture-in-picture');
-    if (pipBtn) {
-      pipBtn.setAttribute('aria-pressed', String(active));
-      pipBtn.title = active ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر';
+    const desktop = window.auraDesktop;
+    if (typeof desktop?.setNativePictureInPicture !== 'function') {
+      showPlayerStatus('پنجرهٔ شناور مستقل در این نسخهٔ دسکتاپ در دسترس نیست.', { error: true });
+      return;
     }
-    showPlayerOSD('تصویر در تصویر', active ? 'روشن' : 'خاموش');
+    if (nativePipTogglePending) return;
+    nativePipTogglePending = true;
+    if (pipBtn) pipBtn.disabled = true;
+    try {
+      const result = await desktop.setNativePictureInPicture(!desktopPiPActive);
+      if (result && typeof result.active === 'boolean') {
+        desktopPiPActive = result.active;
+        pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
+        if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
+        if (!desktopPiPActive) requestNativeOutputResize();
+      }
+      showPlayerOSD('تصویر در تصویر', desktopPiPActive ? 'روشن' : 'خاموش');
+    } catch (error) {
+      showPlayerStatus(`باز کردن پنجرهٔ شناور ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
+    } finally {
+      nativePipTogglePending = false;
+      if (pipBtn) pipBtn.disabled = false;
+    }
     return;
   }
 
@@ -4157,8 +4177,11 @@ function setEmbeddedMpvActive(active) {
   playerStage.classList.remove('native-mpv-fallback-failed');
   if (!nativeMpvActive) {
     playerStage.classList.remove('is-picture-in-picture');
-    pipBtn?.setAttribute('aria-pressed', 'false');
-    if (pipBtn) pipBtn.title = 'تصویر در تصویر (I)';
+    if (desktopPiPActive && typeof window.auraDesktop?.setNativePictureInPicture === 'function') {
+      void window.auraDesktop.setNativePictureInPicture(false).catch((error) => {
+        console.warn('[Aura Player] Could not close PiP after native playback stopped:', error?.message || error);
+      });
+    }
     nativeVideoContext?.clearRect(0, 0, nativeVideoCanvas.width, nativeVideoCanvas.height);
     nativeMpvState.loaded = false;
     nativeMpvState.currentTime = 0;
@@ -4229,7 +4252,7 @@ function handleEmbeddedMpvState(message) {
 }
 
 function requestNativeOutputResize() {
-  if (!nativeMpvActive || nativeResizeRaf || typeof window.auraDesktop?.commandEmbeddedMpv !== 'function') return;
+  if (!nativeMpvActive || desktopPiPActive || nativeResizeRaf || typeof window.auraDesktop?.commandEmbeddedMpv !== 'function') return;
   nativeResizeRaf = window.requestAnimationFrame(() => {
     nativeResizeRaf = 0;
     if (!nativeMpvActive) return;
@@ -4276,6 +4299,12 @@ if (window.auraDesktop?.isDesktop) {
     nativeMpvState.totalVideoFrames += 1;
   });
   window.auraDesktop.onEmbeddedMpvState(handleEmbeddedMpvState);
+  window.auraDesktop.onNativePictureInPictureState((state) => {
+    desktopPiPActive = Boolean(state?.active);
+    pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
+    if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
+    if (!desktopPiPActive) requestNativeOutputResize();
+  });
 }
 
 
