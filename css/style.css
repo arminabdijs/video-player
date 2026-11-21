@@ -7513,6 +7513,23 @@ html.aura-extreme-playback {
   height: 100% !important;
 }
 
+
+.m3-player-card.desktop-native-pip-active::after {
+  content: "";
+  position: absolute;
+  z-index: 2147482000;
+  inset: 0;
+  background: rgba(0, 0, 0, .72);
+  pointer-events: none;
+  transition: background 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-player-card.desktop-native-pip-active::after {
+    transition: none;
+  }
+}
+
 @media (max-width: 760px) {
   .m3-player-card.is-picture-in-picture {
     inset: auto 10px 10px auto !important;
