@@ -53,9 +53,10 @@ test('native helper can decode a single poster frame without Chromium video deco
 });
 
 
-test('native frame loop is capped at 60 FPS and uses a single latest-frame PBO slot', () => {
+test('native frame loop is capped at 30 FPS and uses a single latest-frame PBO slot to reduce resource use', () => {
   const source = read('native/mpv-frame-host/main.cpp');
-  assert.match(source, /constexpr int kTargetFps = 60/);
+  assert.match(source, /constexpr int kTargetFps = 30/);
+  assert.match(source, /SDL_Delay\(8\)/);
   assert.match(source, /constexpr int kPboCount = 1/);
   const ring = source.match(/class PixelReadbackRing\s*\{([\s\S]*?)\n\};/);
   assert.ok(ring, 'PixelReadbackRing should exist');
