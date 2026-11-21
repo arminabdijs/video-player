@@ -4240,15 +4240,33 @@ function startVideoFrameWatchdog() {
       frameCallbackAvailable: true,
     }) ?? (presentedVideoFrameCount > 0 || decodedFrames > 0);
 
-    if (!hasVideoOutput) {
-      showPlayerStatus('صدا پخش می‌شود اما موتور مرورگر تصویر تولید نمی‌کند؛ موتور داخلی پخش در حال فعال‌شدن است…', {
-        timeout: 0,
-      });
+    const droppedFrames = Math.max(0, Number(quality?.droppedVideoFrames) || 0);
+    const droppedRatio = decodedFrames > 0 ? droppedFrames / decodedFrames : 0;
+    const browserPlaybackIsStalling = hasVideoOutput && decodedFrames >= 90 && droppedRatio >= 0.18;
+
+    if (!hasVideoOutput || browserPlaybackIsStalling) {
+      showPlayerStatus(
+        browserPlaybackIsStalling
+          ? 'پخش مرورگر افت فریم قابل‌توجه دارد؛ موتور جایگزین در حال فعال‌شدن است…'
+          : 'صدا پخش می‌شود اما موتور مرورگر تصویر تولید نمی‌کند؛ موتور داخلی پخش در حال فعال‌شدن است…',
+        { timeout: 0 },
+      );
       const result = await tryDesktopMpvFallback();
       if (!result.opened && result.handled) {
         playerStage.classList.add('native-mpv-fallback-failed');
         videoElement.pause();
       }
+      return;
+    }
+
+    // Keep checking long clips. MediaCapabilities predicts performance from a
+    // representative profile; real dropped-frame telemetry is the final judge.
+    if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
+      videoFrameWatchdogTimer = window.setTimeout(() => {
+        if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
+          startVideoFrameWatchdog();
+        }
+      }, 5000);
     }
   }, 2600);
 }
