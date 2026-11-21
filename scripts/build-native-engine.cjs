@@ -159,7 +159,12 @@ function buildLinux() {
 }
 
 function verifyWindowsExecutableDependencies(executable, runtimeDir) {
-  const result = spawnSync('objdump', ['-p', executable], { encoding: 'utf8', windowsHide: true });
+  const result = spawnSync('objdump', ['-p', executable], {
+    encoding: 'utf8',
+    windowsHide: true,
+    // The PE import/debug metadata can exceed Node's 1 MiB spawnSync default on MinGW builds.
+    maxBuffer: 32 * 1024 * 1024,
+  });
   if (result.error || result.status !== 0) {
     fail(`Could not audit Windows native host dependencies with objdump: ${result.error?.message || result.stderr || `exit ${result.status}`}`);
   }
