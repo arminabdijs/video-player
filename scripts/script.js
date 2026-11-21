@@ -4304,6 +4304,9 @@ if (window.auraDesktop?.isDesktop) {
     if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
     if (!desktopPiPActive) requestNativeOutputResize();
   });
+  window.auraDesktop.onDesktopWindowRestored(() => {
+    requestNativeOutputResize();
+  });
 }
 
 
