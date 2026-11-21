@@ -43,6 +43,7 @@ class EmbeddedMpvHost {
     this.assertTrustedRenderer = assertTrustedRenderer;
     this.child = null;
     this.port = null;
+    this.frameWindows = new Map([['main', window]]);
     this.stdoutChunks = [];
     this.stdoutBytes = 0;
     this.pendingFrameHeader = null;
@@ -101,6 +102,59 @@ class EmbeddedMpvHost {
     }
   }
 
+  attachFrameTarget(id, targetWindow) {
+    if (typeof id !== 'string' || !id || !targetWindow) {
+      throw new TypeError('A named, live frame target window is required.');
+    }
+    this.frameWindows.set(id, targetWindow);
+    if (!this.activeSession) return false;
+    return this.attachSessionFramePort(this.activeSession, id, targetWindow);
+  }
+
+  detachFrameTarget(id) {
+    this.frameWindows.delete(id);
+    const session = this.activeSession;
+    const target = session?.ports.get(id);
+    if (!target) return false;
+
+    session.ports.delete(id);
+    if (this.port === target.port) this.port = session.ports.get('main')?.port || null;
+    try { target.port.close(); } catch { /* already closed */ }
+
+    if (session.pendingFrameAcks.delete(id) && this.awaitingAck && session.pendingFrameAcks.size === 0) {
+      this.acknowledgeFrame(session);
+    }
+    return true;
+  }
+
+  attachSessionFramePort(session, id, targetWindow) {
+    if (!session || this.activeSession !== session ||
+        targetWindow.isDestroyed?.() || targetWindow.webContents?.isDestroyed?.()) return false;
+
+    const existing = session.ports.get(id);
+    if (existing) {
+      try { existing.port.close(); } catch { /* already closed */ }
+      session.ports.delete(id);
+      session.pendingFrameAcks.delete(id);
+    }
+
+    const { port1, port2 } = new MessageChannelMain();
+    const target = { window: targetWindow, port: port2 };
+    session.ports.set(id, target);
+    if (id === 'main') this.port = port2;
+
+    port2.on('message', (messageEvent) => {
+      if (this.activeSession !== session || session.ports.get(id) !== target) return;
+      const message = messageEvent.data;
+      if (message?.type !== 'ack' || Number(message.sequence) !== this.awaitingSequence) return;
+      if (!session.pendingFrameAcks.delete(id)) return;
+      if (session.pendingFrameAcks.size === 0) this.acknowledgeFrame(session);
+    });
+    port2.start();
+    targetWindow.webContents.postMessage('aura:embedded-mpv-channel', null, [port1]);
+    return true;
+  }
+
   start(event, filePath, requestedStartTime = 0, requestedSize = {}) {
     const operation = this.startQueue.then(
       () => this.startSession(event, filePath, requestedStartTime, requestedSize),
@@ -145,44 +199,20 @@ class EmbeddedMpvHost {
     this.thumbnailPromises = new Map();
     this.thumbnailWriteCount = 0;
 
-    const { port1, port2 } = new MessageChannelMain();
-    const session = { id: ++this.sessionSequence, port: port2, child: null, stopRequested: false };
+    const session = {
+      id: ++this.sessionSequence,
+      port: null,
+      ports: new Map(),
+      pendingFrameAcks: new Set(),
+      child: null,
+      stopRequested: false,
+    };
     this.activeSession = session;
-    this.port = port2;
-    this.port.on('message', (messageEvent) => {
-      if (this.activeSession !== session) return;
-      const message = messageEvent.data;
-      if (message?.type === 'ack') {
-        if (Number(message.sequence) !== this.awaitingSequence) return;
-        this.awaitingAck = false;
-        if (this.frameSentAtNs > 0n) {
-          const ackMs = Number(process.hrtime.bigint() - this.frameSentAtNs) / 1e6;
-          this.frameAckSamples += 1;
-          this.frameAckTotalMs += ackMs;
-          this.frameAckMaxMs = Math.max(this.frameAckMaxMs, ackMs);
-          const elapsedMs = Date.now() - this.frameAckStatsStartedAt;
-          if (elapsedMs >= 2000) {
-            const fps = (this.frameAckSamples * 1000 / elapsedMs).toFixed(1);
-            const averageAck = (this.frameAckTotalMs / this.frameAckSamples).toFixed(1);
-            console.info(`[Aura Player] Frame transport: ${fps} acknowledged FPS; ACK avg ${averageAck} ms; max ${this.frameAckMaxMs.toFixed(1)} ms`);
-            this.frameAckStatsStartedAt = Date.now();
-            this.frameAckSamples = 0;
-            this.frameAckTotalMs = 0;
-            this.frameAckMaxMs = 0;
-          }
-          this.frameSentAtNs = 0n;
-        }
-        // Propagate renderer backpressure to the native process. The helper
-        // renders/reads back at most one outstanding frame, so a slow Canvas
-        // cannot build an unbounded queue of stale RGBA frames in stdout.
-        if (session.child && !session.child.killed && session.child.stdin.writable) {
-          session.child.stdin.write('frame-ack\n');
-        }
-        this.flushLatestFrame();
-      }
-    });
-    this.port.start();
-    this.window.webContents.postMessage('aura:embedded-mpv-channel', null, [port1]);
+    this.port = null;
+    for (const [targetId, targetWindow] of this.frameWindows) {
+      this.attachSessionFramePort(session, targetId, targetWindow);
+    }
+    session.port = this.port;
 
     const env = { ...process.env };
     const libraryDirectory = path.join(runtimeDirectory, 'lib');
@@ -221,7 +251,7 @@ class EmbeddedMpvHost {
       if (child.pid == null) {
         this.activeSession = null;
         if (this.child === child) this.child = null;
-        this.closePort(session.port);
+        this.closeSessionFramePorts(session);
       }
     });
     child.once('exit', (code, signal) => {
@@ -233,7 +263,7 @@ class EmbeddedMpvHost {
       if (reportAsUnexpected) {
         this.sendState({ type: 'process-exit', code, signal, reason: this.lastEngineError || '' });
       }
-      this.closePort(session.port);
+      this.closeSessionFramePorts(session);
     });
 
     await new Promise((resolve, reject) => {
@@ -429,14 +459,14 @@ class EmbeddedMpvHost {
   }
 
   flushLatestFrame() {
-    if (!this.latestFrame || this.awaitingAck || !this.port) return;
+    const session = this.activeSession;
+    if (!this.latestFrame || this.awaitingAck || !session?.ports?.size) return;
     const frame = this.latestFrame;
     this.latestFrame = null;
     try {
-      // takeBytes() gives each frame an exact, dedicated Buffer allocation;
-      // use its ArrayBuffer directly. Structured clone performs the one
-      // cross-process copy required by MessagePortMain, without an extra
-      // JavaScript Buffer -> Uint8Array copy before IPC.
+      // Each renderer gets the same tightly-sized RGBA frame over its own
+      // MessagePort. Backpressure is released only after every visible target
+      // acknowledges the frame, so a slow PiP surface cannot build a queue.
       const frameBuffer = frame.pixelData.buffer;
       if (frame.pixelData.byteOffset !== 0 || frame.pixelData.byteLength !== frameBuffer.byteLength) {
         throw new Error('Native frame buffer is not tightly allocated.');
@@ -444,17 +474,64 @@ class EmbeddedMpvHost {
       const sequence = frame.sequence || ++this.sequence;
       this.awaitingSequence = sequence;
       this.frameSentAtNs = process.hrtime.bigint();
-      this.port.postMessage({
-        type: 'frame',
-        width: frame.width,
-        height: frame.height,
-        sequence,
-        data: frameBuffer,
-      });
       this.awaitingAck = true;
+      session.pendingFrameAcks.clear();
+
+      for (const [id, target] of session.ports) {
+        if (target.window.isDestroyed?.() || target.window.webContents?.isDestroyed?.()) {
+          session.ports.delete(id);
+          if (this.frameWindows.get(id) === target.window) this.frameWindows.delete(id);
+          continue;
+        }
+        session.pendingFrameAcks.add(id);
+        try {
+          target.port.postMessage({
+            type: 'frame',
+            width: frame.width,
+            height: frame.height,
+            sequence,
+            data: frameBuffer,
+          });
+        } catch (error) {
+          session.pendingFrameAcks.delete(id);
+          console.warn(`[Aura Player] Could not send a native frame to ${id}:`, error?.message || error);
+        }
+      }
+
+      if (session.pendingFrameAcks.size === 0) this.acknowledgeFrame(session);
     } catch (error) {
+      this.awaitingAck = false;
+      session.pendingFrameAcks.clear();
       this.sendState({ type: 'error', message: `ارسال فریم به رابط کاربری ناموفق بود: ${error.message}` });
     }
+  }
+
+  acknowledgeFrame(session) {
+    if (this.activeSession !== session || !this.awaitingAck || session.pendingFrameAcks.size > 0) return;
+    this.awaitingAck = false;
+    if (this.frameSentAtNs > 0n) {
+      const ackMs = Number(process.hrtime.bigint() - this.frameSentAtNs) / 1e6;
+      this.frameAckSamples += 1;
+      this.frameAckTotalMs += ackMs;
+      this.frameAckMaxMs = Math.max(this.frameAckMaxMs, ackMs);
+      const elapsedMs = Date.now() - this.frameAckStatsStartedAt;
+      if (elapsedMs >= 2000) {
+        const fps = (this.frameAckSamples * 1000 / elapsedMs).toFixed(1);
+        const averageAck = (this.frameAckTotalMs / this.frameAckSamples).toFixed(1);
+        console.info(`[Aura Player] Frame transport: ${fps} acknowledged FPS; ACK avg ${averageAck} ms; max ${this.frameAckMaxMs.toFixed(1)} ms`);
+        this.frameAckStatsStartedAt = Date.now();
+        this.frameAckSamples = 0;
+        this.frameAckTotalMs = 0;
+        this.frameAckMaxMs = 0;
+      }
+      this.frameSentAtNs = 0n;
+    }
+    // The native decoder may produce the next frame only after all windows
+    // have presented the current one.
+    if (session.child && !session.child.killed && session.child.stdin.writable) {
+      session.child.stdin.write('frame-ack\n');
+    }
+    this.flushLatestFrame();
   }
 
   consumeStatus(chunk) {
@@ -508,8 +585,10 @@ class EmbeddedMpvHost {
   }
 
   sendState(state) {
-    if (!this.window || this.window.isDestroyed()) return;
-    this.window.webContents.send('aura:embedded-mpv-state', state);
+    for (const targetWindow of this.frameWindows.values()) {
+      if (targetWindow.isDestroyed?.() || targetWindow.webContents?.isDestroyed?.()) continue;
+      targetWindow.webContents.send('aura:embedded-mpv-state', state);
+    }
   }
 
   command(event, command) {
@@ -592,7 +671,8 @@ class EmbeddedMpvHost {
     this.stdoutChunks = [];
     this.stdoutBytes = 0;
     this.pendingFrameHeader = null;
-    this.closePort(session?.port || this.port);
+    if (session) this.closeSessionFramePorts(session);
+    else this.closePort(this.port);
 
     if (!child) {
       this.thumbnailPromises = new Map();
@@ -645,10 +725,19 @@ class EmbeddedMpvHost {
     if (!port) return;
     const isCurrentPort = this.port === port;
     try { port.close(); } catch { /* already closed */ }
-    if (isCurrentPort) {
-      this.port = null;
-      this.awaitingAck = false;
+    if (isCurrentPort) this.port = null;
+  }
+
+  closeSessionFramePorts(session) {
+    if (!session?.ports) return;
+    for (const target of session.ports.values()) {
+      try { target.port.close(); } catch { /* already closed */ }
     }
+    session.ports.clear();
+    session.pendingFrameAcks.clear();
+    if (this.activeSession === session || this.port) this.port = null;
+    this.awaitingAck = false;
+    this.latestFrame = null;
   }
 
   dispose() {
