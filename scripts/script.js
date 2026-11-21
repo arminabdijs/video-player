@@ -2130,7 +2130,9 @@ const desktopBrowserDecodeProfiles = Object.freeze({
 });
 
 async function getPowerEfficientBrowserDecodeProfile(item) {
-  if (!navigator.mediaCapabilities?.decodingInfo || typeof videoElement.canPlayType !== 'function') return null;
+  // Keep native frame routing while the custom always-on-top PiP is active.
+  if (desktopPiPActive || !navigator.mediaCapabilities?.decodingInfo ||
+      typeof videoElement.canPlayType !== 'function') return null;
   const fileName = String(item?.name || item?.file?.name || item?.externalPath || '');
   const extension = fileName.split(/[?#]/, 1)[0].split('.').pop().toLowerCase();
   const profiles = Object.values(desktopBrowserDecodeProfiles).flat()
@@ -2195,9 +2197,8 @@ async function startNativeDesktopPlayback(item, generation) {
     const browserProfile = await getPowerEfficientBrowserDecodeProfile(item);
     if (generation !== playbackGeneration) return false;
     if (browserProfile) {
-      // Switching from a previous native/PiP file to the browser path must
-      // release the decoder, hidden GL context and duplicate frame transport.
-      if (desktopPiPActive) await desktop.setNativePictureInPicture(false);
+      // Switching from a previous native file to the browser path must release
+      // the decoder, hidden GL context and duplicate frame transport.
       await desktop.stopEmbeddedMpv?.();
       if (generation !== playbackGeneration) return false;
       startBrowserDesktopPlayback(item, browserProfile, desiredRate);
