@@ -227,9 +227,10 @@ test('desktop prewarms libmpv and OpenGL during window loading, then loads the f
   assert.match(main, /did-finish-load'[\s\S]*?attachFrameTarget\('main', mainWindow\)[\s\S]*?flushPendingMediaFiles/);
   assert.match(host, /prewarm\(requestedSize = \{\}\)/);
   assert.match(host, /waitForSessionReady\(session\)/);
-  assert.match(host, /loadIntoWarmSession\(existing, filePath, requestedStartTime, requestedSize\)/);
+  assert.match(host, /loadIntoSession\(existing, filePath, requestedStartTime, requestedSize\)/);
   assert.match(host, /load-file-hex \$\{encodedPath\} \$\{startTime\}/);
-  assert.match(host, /Reusing the warmed native engine/);
+  assert.match(host, /Reusing the existing native engine/);
+  assert.match(native, /mpv_set_property_string\(mpv, "pause", "no"\)/);
   assert.match(native, /bool warmup = false/);
   assert.match(native, /arg == "--warmup"/);
   assert.match(native, /if \(!options\.warmup\)[\s\S]*?mpv_command\(mpv, loadArgs\)/);
