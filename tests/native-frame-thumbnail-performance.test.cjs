@@ -234,6 +234,7 @@ test('desktop prewarms libmpv and OpenGL during window loading, then loads the f
   assert.match(host, /Reusing the existing native engine/);
   assert.match(script, /commandEmbeddedMpv\(\{ type: 'pause' \}\)/);
   assert.doesNotMatch(script, /stopMpv/);
+  assert.match(script, /if \(generation !== playbackGeneration\) \{[\s\S]*?Never tear the shared engine down from a stale start/);
   assert.match(native, /mpv_set_property_string\(mpv, "pause", "no"\)/);
   assert.match(native, /bool warmup = false/);
   assert.match(native, /arg == "--warmup"/);
