@@ -25,10 +25,34 @@ function Set-GitHubEnvironment([string]$Name, [string]$Value) {
 }
 
 if ($env:OS -ne 'Windows_NT') { Stop-Build 'This preparation script is intended for the isolated Windows x64 release runner.' }
-if (-not (Get-Command gcc -ErrorAction SilentlyContinue) -or -not (Get-Command g++ -ErrorAction SilentlyContinue)) {
-    Stop-Build 'The CI runner does not have the MSYS2 UCRT64 MinGW-w64 compiler on PATH.'
+
+# Never infer the MSYS2 prefix from the first gcc found on the runner PATH:
+# hosted Windows images may contain an unrelated C:\mingw64 toolchain.
+# setup-msys2 exposes its exact installation root as an action output.
+if (-not $env:MSYS2_LOCATION -or -not (Test-Path -LiteralPath $env:MSYS2_LOCATION -PathType Container)) {
+    Stop-Build 'MSYS2_LOCATION was not provided by msys2/setup-msys2. Pass steps.msys2.outputs.msys2-location to this step.'
 }
-if (-not (Get-Command objdump -ErrorAction SilentlyContinue)) { Stop-Build 'MinGW-w64 objdump is required to audit and bundle transitive DLL dependencies.' }
+$msys2Root = (Resolve-Path -LiteralPath $env:MSYS2_LOCATION).Path
+$ucrtPrefix = Join-Path $msys2Root 'ucrt64'
+$ucrtBin = Join-Path $ucrtPrefix 'bin'
+$requiredToolPaths = @(
+    (Join-Path $ucrtBin 'gcc.exe'),
+    (Join-Path $ucrtBin 'g++.exe'),
+    (Join-Path $ucrtBin 'objdump.exe'),
+    (Join-Path $ucrtBin 'ninja.exe'),
+    (Join-Path $ucrtBin 'cmake.exe')
+)
+foreach ($toolPath in $requiredToolPaths) {
+    if (-not (Test-Path -LiteralPath $toolPath -PathType Leaf)) {
+        Stop-Build "The isolated UCRT64 toolchain is incomplete; required file not found: $toolPath"
+    }
+}
+
+# Put the exact UCRT64 toolchain first for this process and all following Actions steps.
+$env:PATH = "$ucrtBin;$env:PATH"
+if ($env:GITHUB_PATH) {
+    [System.IO.File]::AppendAllText($env:GITHUB_PATH, $ucrtBin + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+}
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $sdkRoot = Join-Path $env:RUNNER_TEMP 'aura-windows-native-sdk'
@@ -56,9 +80,6 @@ if (-not $header -or -not $importLibrary -or -not $mpvDll) {
 }
 $mpvIncludeDir = $header.Directory.Parent.FullName
 
-$gccPath = (Get-Command gcc).Source
-$ucrtBin = Split-Path -Parent $gccPath
-$ucrtPrefix = Split-Path -Parent $ucrtBin
 $sdlConfig = Join-Path $ucrtPrefix 'lib/cmake/SDL2/SDL2Config.cmake'
 $sdlDll = Join-Path $ucrtBin 'SDL2.dll'
 if (-not (Get-Command msys2 -ErrorAction SilentlyContinue)) {
