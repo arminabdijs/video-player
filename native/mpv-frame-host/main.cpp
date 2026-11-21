@@ -61,7 +61,7 @@ namespace {
 constexpr std::uint32_t kFrameMagic = 0x41525541U; // "AURA" on little-endian hosts.
 constexpr std::uint32_t kMaxDimension = 8192;
 constexpr std::uint64_t kMaxFrameBytes = 256ULL * 1024ULL * 1024ULL;
-constexpr int kTargetFps = 60;
+constexpr int kTargetFps = 30; // Balanced frame transport for low-power CPUs; source decode quality/resolution remain unchanged.
 constexpr int kPboCount = 1; // A single pending readback prevents stale-frame queues and A/V latency.
 constexpr int kMaxOutputWidth = 3840;
 constexpr int kMaxOutputHeight = 2160;
@@ -1192,7 +1192,7 @@ int main(int argc, char **argv) {
         }
         lastFrame = now;
       }
-      SDL_Delay(2);
+      SDL_Delay(8); // Reduce busy-loop wakeups while keeping command/frame latency bounded.
     }
 
     g_running.store(false, std::memory_order_relaxed);
