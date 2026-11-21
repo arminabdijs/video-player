@@ -164,7 +164,10 @@ test('native Windows PiP is an independent always-on-top window and keeps playba
   assert.match(mainSource, /setAlwaysOnTop\(true, 'screen-saver'\)/);
   assert.match(mainSource, /showInactive\(\)/);
   assert.match(mainSource, /attachFrameTarget\('pip'/);
-  assert.match(mainSource, /setFrameOutputEnabled\(Boolean\(pipWindow && !pipWindow\.isDestroyed\(\)\)\)/);
+  assert.match(mainSource, /setFrameOutputEnabled\(pipActive\)/);
+  assert.match(mainSource, /detachFrameTarget\('main'\)/);
+  assert.match(mainSource, /attachFrameTarget\('main', mainWindow\)/);
+  assert.match(mainSource, /backgroundThrottling: false/);
   assert.match(mainSource, /assertTrustedPipRenderer/);
   assert.match(preloadSource, /setNativePictureInPicture/);
   assert.match(preloadSource, /onNativePictureInPictureState/);
