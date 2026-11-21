@@ -210,9 +210,14 @@ class EmbeddedMpvHost {
 
       const existing = this.activeSession;
       if (existing?.isWarmup && existing.child && !existing.child.killed) {
-        await this.waitForSessionReady(existing);
-        if (this.activeSession === existing && existing.child && !existing.child.killed) {
-          return this.loadIntoWarmSession(existing, filePath, requestedStartTime, requestedSize);
+        try {
+          await this.waitForSessionReady(existing);
+          if (this.activeSession === existing && existing.child && !existing.child.killed) {
+            return this.loadIntoWarmSession(existing, filePath, requestedStartTime, requestedSize);
+          }
+        } catch (error) {
+          console.warn('[Aura Player] Warmup did not become ready; starting the playback engine on demand:', error?.message || error);
+          await this.stop();
         }
       }
     }
