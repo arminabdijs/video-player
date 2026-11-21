@@ -86,7 +86,12 @@ function createMainWindow() {
     // surface is visible; otherwise audio would continue over a frozen image.
     embeddedMpv?.setFrameOutputEnabled(Boolean(pipWindow && !pipWindow.isDestroyed()));
   });
-  mainWindow.on('restore', () => embeddedMpv?.setFrameOutputEnabled(true));
+  mainWindow.on('restore', () => {
+    embeddedMpv?.setFrameOutputEnabled(true);
+    if (!mainWindow?.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('aura:desktop-window-restored');
+    }
+  });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
     if (!isTrustedApplicationDocument(targetUrl, path.join(APP_ROOT, 'index.html'))) {
