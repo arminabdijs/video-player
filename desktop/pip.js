@@ -143,5 +143,44 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+let activeResizePointerId = null;
+let activeResizeHandle = null;
+
+document.querySelectorAll('[data-pip-resize]').forEach((handle) => {
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || activeResizePointerId !== null) return;
+    const direction = handle.getAttribute('data-pip-resize');
+    if (!direction) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    activeResizePointerId = event.pointerId;
+    activeResizeHandle = handle;
+    try { handle.setPointerCapture(event.pointerId); } catch { /* pointer capture may be unavailable */ }
+    window.auraPip?.startResize(direction, event.screenX, event.screenY);
+  });
+});
+
+window.addEventListener('pointermove', (event) => {
+  if (activeResizePointerId !== event.pointerId) return;
+  window.auraPip?.updateResize(event.screenX, event.screenY);
+}, { passive: true });
+
+function finishWindowResize(event) {
+  if (activeResizePointerId === null || event.pointerId !== activeResizePointerId) return;
+  const handle = activeResizeHandle;
+  activeResizePointerId = null;
+  activeResizeHandle = null;
+  window.auraPip?.endResize();
+  try {
+    if (handle?.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+  } catch {
+    // The operating system may already have released the pointer.
+  }
+}
+
+window.addEventListener('pointerup', finishWindowResize);
+window.addEventListener('pointercancel', finishWindowResize);
+
 updateControls();
 if (lastFrameAt === 0 && statusLabel) statusLabel.textContent = 'در انتظار فریم ویدئو…';
