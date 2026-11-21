@@ -85,6 +85,8 @@ test('the Picture-in-Picture control opens a real desktop window for native Canv
   assert.match(main, /updateNativePipResize/);
   assert.match(main, /getInitialPipBounds\(\)/);
   assert.match(main, /rememberPipBounds\(window\)/);
+  assert.match(main, /window\.on\('close', \(\) => rememberPipBounds\(window\)\)/);
+  assert.match(main, /const size = getNativePipRenderSize\(\) \|\| payload\?\.size/);
   assert.match(pipPreload, /aura:pip-resize-start/);
   assert.match(pipPreload, /aura:pip-resize-update/);
   assert.match(pipPreload, /aura:pip-resize-end/);
@@ -96,6 +98,8 @@ test('the Picture-in-Picture control opens a real desktop window for native Canv
   assert.match(pipRenderer, /setPointerCapture/);
   assert.match(pipRenderer, /updateResize\(event\.screenX, event\.screenY\)/);
   assert.match(script, /playerStage\?\.classList\.toggle\('desktop-native-pip-active', desktopPiPActive\)/);
+  assert.match(script, /if \(desktopPiPActive\) lastNativeOutputSize = \{ width: 0, height: 0 \}/);
+  assert.match(script, /lastNativeOutputSize = desktopPiPActive\s*\? \{ width: 0, height: 0 \}/);
   assert.match(script, /if \(!nativeMpvActive \|\| desktopPiPActive \|\| nativeResizeRaf/);
   assert.match(css, /\.m3-player-card\.desktop-native-pip-active::after/);
   assert.match(css, /background: rgba\(0, 0, 0, \.72\)/);
