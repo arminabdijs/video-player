@@ -8,6 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const pkg = require('../package.json');
 const buildScript = fs.readFileSync(path.join(root, 'scripts/Build-Windows-Setup.ps1'), 'utf8');
+const prepareScript = fs.readFileSync(path.join(root, 'scripts/Prepare-Windows-Native.ps1'), 'utf8');
 
 test('Windows release produces an NSIS Setup only, not a portable build', () => {
   assert.equal(pkg.version, '2.5.13');
@@ -44,4 +45,10 @@ test('PowerShell builder validates target OS and native SDK before packaging', (
   assert.match(buildScript, /codec:diagnose/);
   assert.match(buildScript, /desktop:dist:windows:setup/);
   assert.match(buildScript, /\*-Setup-\*-x64\.exe/);
+});
+
+test('MSYS2 package metadata is queried through the MSYS2 shell helper, not native PowerShell PATH', () => {
+  assert.match(prepareScript, /Get-Command msys2/);
+  assert.match(prepareScript, /& msys2 -c 'pacman -Q mingw-w64-ucrt-x86_64-SDL2'/);
+  assert.doesNotMatch(prepareScript, /& pacman -Q/);
 });
