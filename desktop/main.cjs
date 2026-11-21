@@ -10,6 +10,7 @@ const APP_ROOT = app.getAppPath();
 let mainWindow = null;
 let pipWindow = null;
 let pipResizeTimer = null;
+let mainFrameTargetDetached = false;
 let embeddedMpv = null;
 let isQuitting = false;
 let rendererReady = false;
@@ -82,11 +83,17 @@ function createMainWindow() {
   });
   mainWindow.once('ready-to-show', () => mainWindow?.show());
   mainWindow.on('minimize', () => {
-    // Keep native frames flowing while the independent always-on-top PiP
-    // surface is visible; otherwise audio would continue over a frozen image.
-    embeddedMpv?.setFrameOutputEnabled(Boolean(pipWindow && !pipWindow.isDestroyed()));
+    // If PiP is visible, route frames only to that window. This prevents a
+    // minimized main renderer from throttling the shared native frame ACK.
+    const pipActive = Boolean(pipWindow && !pipWindow.isDestroyed());
+    if (pipActive && embeddedMpv?.detachFrameTarget('main')) mainFrameTargetDetached = true;
+    embeddedMpv?.setFrameOutputEnabled(pipActive);
   });
   mainWindow.on('restore', () => {
+    if (mainFrameTargetDetached && mainWindow && !mainWindow.isDestroyed()) {
+      embeddedMpv?.attachFrameTarget('main', mainWindow);
+      mainFrameTargetDetached = false;
+    }
     embeddedMpv?.setFrameOutputEnabled(true);
     if (!mainWindow?.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('aura:desktop-window-restored');
@@ -149,6 +156,7 @@ async function openNativePictureInPicture(event) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false,
       webSecurity: true,
     },
   });
