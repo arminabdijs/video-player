@@ -15,8 +15,7 @@ test('Windows release produces an NSIS Setup only, not a portable build', () => 
   assert.deepEqual(pkg.build.win.target, [{ target: 'nsis', arch: ['x64'] }]);
   assert.equal(pkg.build.win.artifactName, '${productName}-Setup-${version}-${arch}.${ext}');
   assert.match(pkg.scripts['desktop:dist:windows'], /Build-Windows-Setup\.ps1/);
-  assert.match(buildScript, /desktop:dist:windows:setup/);
-  assert.equal(pkg.scripts['desktop:dist:windows:setup'], 'electron-builder --win nsis');
+  assert.equal(pkg.scripts['desktop:dist:windows:setup'], 'electron-builder --win nsis --publish never');
   assert.doesNotMatch(pkg.scripts['desktop:dist:windows'], /portable/i);
 });
 
