@@ -64,12 +64,21 @@ test('additional MPV-oriented video extensions are recognized by library scannin
   }
 });
 
-test('the Picture-in-Picture control has an in-app fallback for native Canvas playback', () => {
+test('the Picture-in-Picture control opens a real desktop window for native Canvas playback', () => {
   const script = read('scripts/script.js');
-  const css = read('css/style.css');
-  assert.match(script, /if \(nativeMpvActive\) \{[\s\S]*?is-picture-in-picture/);
-  assert.match(css, /\.m3-player-card\.is-picture-in-picture/);
-  assert.match(script, /pipBtn\.setAttribute\('aria-pressed', String\(active\)\)/);
+  const main = read('desktop/main.cjs');
+  const pipHtml = read('desktop/pip.html');
+  const pipRenderer = read('desktop/pip.js');
+
+  assert.match(script, /if \(nativeMpvActive\) \{[\s\S]*?desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
+  assert.match(script, /onNativePictureInPictureState/);
+  assert.doesNotMatch(script, /playerStage\.classList\.toggle\('is-picture-in-picture'\)/);
+  assert.match(main, /new BrowserWindow\(\{[\s\S]*?alwaysOnTop: true/);
+  assert.match(main, /setAlwaysOnTop\(true, 'screen-saver'\)/);
+  assert.match(pipHtml, /id="pipCanvas"/);
+  assert.match(pipRenderer, /context\.putImageData/);
+  assert.match(pipRenderer, /toggle-pause/);
+  assert.match(script, /video\.requestPictureInPicture\(\)/);
 });
 
 
