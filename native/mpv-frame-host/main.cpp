@@ -85,6 +85,7 @@ struct Options {
   bool diagnoseCodecs = false;
   bool verifyRequiredCodecs = false;
   bool thumbnail = false;
+  bool warmup = false;
   int width = 1920;
   int height = 1080;
 };
@@ -96,6 +97,8 @@ std::atomic<bool> g_running{true};
 std::mutex g_commandMutex;
 std::deque<std::string> g_commands;
 std::atomic<std::uint64_t> g_requestedSize{0};
+std::atomic<double> g_pendingStartTime{0.0};
+std::atomic<bool> g_seekOnFileLoaded{false};
 
 void mpvUpdate(void *) {
   g_frameDirty.store(true, std::memory_order_release);
@@ -236,6 +239,7 @@ Options parseArguments(int argc, char **argv) {
     if (arg == "--diagnose-codecs") options.diagnoseCodecs = true;
     else if (arg == "--verify-required-codecs") options.verifyRequiredCodecs = true;
     else if (arg == "--thumbnail") options.thumbnail = true;
+    else if (arg == "--warmup") options.warmup = true;
     else if (arg == "--file" && i + 1 < argc) options.file = argv[++i];
     else if (arg == "--start" && i + 1 < argc) options.start = std::max(0.0, std::atof(argv[++i]));
     else if (arg == "--width" && i + 1 < argc) options.width = std::clamp(std::atoi(argv[++i]), 320, static_cast<int>(kMaxOutputWidth));
@@ -245,7 +249,13 @@ Options parseArguments(int argc, char **argv) {
     options.width = std::clamp(options.width, 160, 640);
     options.height = std::clamp(options.height, 90, 360);
   }
-  if (options.file.empty() && !options.diagnoseCodecs && !options.verifyRequiredCodecs) throw std::runtime_error("Missing --file argument.");
+  if (options.warmup) {
+    options.width = std::min(options.width, 640);
+    options.height = std::min(options.height, 360);
+  }
+  if (options.file.empty() && !options.diagnoseCodecs && !options.verifyRequiredCodecs && !options.warmup) {
+    throw std::runtime_error("Missing --file argument.");
+  }
   return options;
 }
 
@@ -284,7 +294,24 @@ void executeCommand(mpv_handle *mpv, const std::string &line) {
   stream >> command;
   if (command.empty()) return;
 
-  if (command == "play") mpv_set_property_string(mpv, "pause", "no");
+  if (command == "load-file-hex") {
+    std::string encodedPath;
+    double startTime = 0.0;
+    stream >> encodedPath;
+    if (!(stream >> startTime)) startTime = 0.0;
+    const std::string filePath = decodeHex(encodedPath);
+    if (filePath.empty() || !std::isfinite(startTime)) {
+      emitEvent("error", "The requested media path or start time is invalid.");
+      return;
+    }
+    g_pendingStartTime.store(std::max(0.0, startTime), std::memory_order_release);
+    g_seekOnFileLoaded.store(startTime > 0.01, std::memory_order_release);
+    const char *args[] = {"loadfile", filePath.c_str(), "replace", nullptr};
+    const int result = mpv_command(mpv, args);
+    if (result < 0) emitEvent("error", mpv_error_string(result));
+    else emitEvent("opening-media");
+  }
+  else if (command == "play") mpv_set_property_string(mpv, "pause", "no");
   else if (command == "pause") mpv_set_property_string(mpv, "pause", "yes");
   else if (command == "toggle-pause") mpv_command_string(mpv, "cycle pause");
   else if (command == "stop") mpv_command_string(mpv, "stop");
@@ -915,10 +942,18 @@ int main(int argc, char **argv) {
     if (renderResult < 0) throw std::runtime_error(std::string("MPV OpenGL renderer init failed: ") + mpv_error_string(renderResult));
     mpv_render_context_set_update_callback(renderContext, mpvUpdate, nullptr);
 
-    emitEvent("phase", "opening media file");
-    const char *loadArgs[] = {"loadfile", options.file.c_str(), "replace", nullptr};
-    const int loadResult = mpv_command(mpv, loadArgs);
-    if (loadResult < 0) throw std::runtime_error(std::string("Could not load the selected file: ") + mpv_error_string(loadResult));
+    if (!options.warmup) {
+      emitEvent("phase", "opening media file");
+      g_pendingStartTime.store(options.start, std::memory_order_release);
+      g_seekOnFileLoaded.store(options.start > 0.01, std::memory_order_release);
+      const char *loadArgs[] = {"loadfile", options.file.c_str(), "replace", nullptr};
+      const int loadResult = mpv_command(mpv, loadArgs);
+      if (loadResult < 0) {
+        throw std::runtime_error(std::string("Could not load the selected file: ") + mpv_error_string(loadResult));
+      }
+    } else {
+      emitEvent("phase", "native player warm and waiting for media");
+    }
 
     if (options.thumbnail) {
       emitEvent("phase", "decoding native poster frame");
@@ -1000,7 +1035,6 @@ int main(int argc, char **argv) {
     std::uint32_t sequence = 0;
     auto nextState = std::chrono::steady_clock::now();
     auto nextOutputProbe = nextState;
-    bool startSeekPending = options.start > 0.01;
     auto lastFrame = std::chrono::steady_clock::now();
     auto configureVideoOutput = [&]() {
       std::int64_t sourceWidth = 0;
@@ -1032,20 +1066,20 @@ int main(int argc, char **argv) {
 
       // Keep the latest viewport request until source dimensions are known.
       // Fullscreen/ResizeObserver can fire before MPV emits FILE_LOADED.
-      const std::uint64_t requestedSize = videoOutputConfigured
-        ? g_requestedSize.exchange(0, std::memory_order_acq_rel)
-        : 0;
+      const std::uint64_t requestedSize = g_requestedSize.exchange(0, std::memory_order_acq_rel);
       const int requestedWidth = static_cast<int>(requestedSize >> 32U);
       const int requestedHeight = static_cast<int>(requestedSize & 0xffffffffULL);
-      if (videoOutputConfigured && requestedWidth >= 480 && requestedHeight >= 270 &&
+      if (requestedWidth >= 480 && requestedHeight >= 270 &&
           (requestedWidth != options.width || requestedHeight != options.height)) {
-        options.width = std::clamp(requestedWidth, 480, kMaxOutputWidth);
-        options.height = std::clamp(requestedHeight, 270, kMaxOutputHeight);
-        if (configureVideoOutput()) {
-          emitEvent("video-output-resized", std::to_string(framebuffer.width) + "x" + std::to_string(framebuffer.height));
-          lastFrame = std::chrono::steady_clock::time_point{};
-        } else {
-          emitEvent("resize-warning", "Could not read source display dimensions while resizing output.");
+        options.width = std::clamp(requestedWidth, 480, g_deviceMaxOutputWidth);
+        options.height = std::clamp(requestedHeight, 270, g_deviceMaxOutputHeight);
+        if (videoOutputConfigured) {
+          if (configureVideoOutput()) {
+            emitEvent("video-output-resized", std::to_string(framebuffer.width) + "x" + std::to_string(framebuffer.height));
+            lastFrame = std::chrono::steady_clock::time_point{};
+          } else {
+            emitEvent("resize-warning", "Could not read source display dimensions while resizing output.");
+          }
         }
       }
 
@@ -1061,11 +1095,12 @@ int main(int argc, char **argv) {
           } else {
             nextOutputProbe = std::chrono::steady_clock::time_point::max();
           }
-          if (startSeekPending) {
-            const std::string startText = std::to_string(options.start);
+          if (g_seekOnFileLoaded.exchange(false, std::memory_order_acq_rel)) {
+            const double startTime = g_pendingStartTime.load(std::memory_order_acquire);
+            const std::string startText = std::to_string(std::max(0.0, startTime));
             const char *seekArgs[] = {"seek", startText.c_str(), "absolute+exact", nullptr};
-            mpv_command(mpv, seekArgs);
-            startSeekPending = false;
+            const int seekResult = mpv_command(mpv, seekArgs);
+            if (seekResult < 0) emitEvent("error", mpv_error_string(seekResult));
           }
         }
         else if (event->event_id == MPV_EVENT_END_FILE) emitEvent("ended");
