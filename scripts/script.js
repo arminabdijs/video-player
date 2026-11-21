@@ -2116,6 +2116,74 @@ function safePlay() {
   }
 }
 
+const desktopBrowserDecodeCache = new Map();
+
+const desktopBrowserDecodeProfiles = Object.freeze({
+  mp4: [
+    { contentType: 'video/mp4; codecs="avc1.42E01E"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
+    { contentType: 'video/mp4; codecs="avc1.640028"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
+  ],
+  webm: [
+    { contentType: 'video/webm; codecs="vp09.00.10.08"', extensions: ['webm'] },
+    { contentType: 'video/webm; codecs="vp8"', extensions: ['webm'] },
+  ],
+});
+
+async function getPowerEfficientBrowserDecodeProfile(item) {
+  if (!navigator.mediaCapabilities?.decodingInfo || typeof videoElement.canPlayType !== 'function') return null;
+  const fileName = String(item?.name || item?.file?.name || item?.externalPath || '');
+  const extension = fileName.split(/[?#]/, 1)[0].split('.').pop().toLowerCase();
+  const profiles = Object.values(desktopBrowserDecodeProfiles).flat()
+    .filter((profile) => profile.extensions.includes(extension));
+
+  for (const profile of profiles) {
+    let support = '';
+    try {
+      support = videoElement.canPlayType(profile.contentType);
+    } catch {
+      continue;
+    }
+    if (!support || support === 'no') continue;
+
+    let resultPromise = desktopBrowserDecodeCache.get(profile.contentType);
+    if (!resultPromise) {
+      resultPromise = navigator.mediaCapabilities.decodingInfo({
+        type: 'file',
+        video: {
+          contentType: profile.contentType,
+          width: 1920,
+          height: 1080,
+          bitrate: 10_000_000,
+          framerate: 60,
+        },
+      }).catch(() => null);
+      desktopBrowserDecodeCache.set(profile.contentType, resultPromise);
+    }
+
+    const result = await resultPromise;
+    if (result?.supported && result.smooth && result.powerEfficient) return profile;
+  }
+  return null;
+}
+
+function startBrowserDesktopPlayback(item, profile, desiredRate) {
+  const sourceUrl = item.externalPath ? item.browserUrl : URL.createObjectURL(item.file);
+  if (typeof sourceUrl !== 'string' || !sourceUrl) {
+    throw new Error('مسیر مستقیم فایل برای decoder مرورگر در دسترس نیست.');
+  }
+
+  activeObjectURL = sourceUrl;
+  const fileSize = Math.max(0, Number(item.size ?? item.file?.size) || 0);
+  videoElement.preload = fileSize <= AUTO_PRELOAD_MAX_BYTES ? 'auto' : 'metadata';
+  videoElement.defaultPlaybackRate = desiredRate;
+  videoElement.playbackRate = desiredRate;
+  videoElement.src = sourceUrl;
+  videoElement.load();
+  safePlay();
+  console.info(`[Aura Player] Browser hardware decoding selected for ${profile.contentType}; bypassing native RGBA frame copies.`);
+  showPlayerStatus('پخش با شتاب‌دهی سخت‌افزاری سیستم فعال شد.', { timeout: 1200 });
+}
+
 async function startNativeDesktopPlayback(item, generation) {
   const desktop = window.auraDesktop;
   if (!desktop?.isDesktop || typeof desktop.startEmbeddedMpv !== 'function') return false;
@@ -2124,6 +2192,13 @@ async function startNativeDesktopPlayback(item, generation) {
   const desiredMuted = Boolean(videoElement.muted);
   const desiredRate = currentPlaybackRate;
   try {
+    const browserProfile = await getPowerEfficientBrowserDecodeProfile(item);
+    if (generation !== playbackGeneration) return false;
+    if (browserProfile) {
+      startBrowserDesktopPlayback(item, browserProfile, desiredRate);
+      return true;
+    }
+
     const filePath = item.externalPath || desktop.getPathForFile(item.file);
     if (!filePath) throw new Error('مسیر واقعی فایل از سیستم‌عامل دریافت نشد.');
     const bounds = playerStage.getBoundingClientRect();
