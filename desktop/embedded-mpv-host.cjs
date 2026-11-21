@@ -209,14 +209,14 @@ class EmbeddedMpvHost {
       if (!info?.isFile()) throw new Error('فایل انتخاب‌شده دیگر وجود ندارد یا فایل معتبر نیست.');
 
       const existing = this.activeSession;
-      if (existing?.isWarmup && existing.child && !existing.child.killed) {
+      if (existing?.child && !existing.child.killed) {
         try {
           await this.waitForSessionReady(existing);
           if (this.activeSession === existing && existing.child && !existing.child.killed) {
-            return this.loadIntoWarmSession(existing, filePath, requestedStartTime, requestedSize);
+            return this.loadIntoSession(existing, filePath, requestedStartTime, requestedSize);
           }
         } catch (error) {
-          console.warn('[Aura Player] Warmup did not become ready; starting the playback engine on demand:', error?.message || error);
+          console.warn('[Aura Player] Existing native engine is not reusable; restarting it for this file:', error?.message || error);
           await this.stop();
         }
       }
@@ -354,7 +354,7 @@ class EmbeddedMpvHost {
     return { started: true, engine: 'libmpv-render-host' };
   }
 
-  loadIntoWarmSession(session, filePath, requestedStartTime = 0, requestedSize = {}) {
+  loadIntoSession(session, filePath, requestedStartTime = 0, requestedSize = {}) {
     const child = session?.child;
     if (!child || child.killed || !child.stdin.writable) {
       throw new Error('موتور آماده‌شده دیگر در دسترس نیست.');
@@ -378,11 +378,12 @@ class EmbeddedMpvHost {
     child.stdin.write(`resize ${width} ${height}\n`);
     child.stdin.write(`frames-enabled ${this.frameOutputEnabled ? 1 : 0}\n`);
     child.stdin.write(`load-file-hex ${encodedPath} ${startTime}\n`);
+    const reusedWarmup = session.isWarmup;
     session.isWarmup = false;
     session.filePath = filePath;
     this.prewarmPromise = null;
-    console.info('[Aura Player] Reusing the warmed native engine; loading media without another process or GPU initialization.');
-    return { started: true, reusedWarmup: true, engine: 'libmpv-render-host' };
+    console.info(`[Aura Player] Reusing the existing native engine${reusedWarmup ? ' warmed during application startup' : ''}; loading media without another process or GPU initialization.`);
+    return { started: true, reusedWarmup, reusedProcess: true, engine: 'libmpv-render-host' };
   }
 
   async generateThumbnail(event, filePath, requestedTime = 0.0) {
