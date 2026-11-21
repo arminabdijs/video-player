@@ -222,7 +222,7 @@ function schedulePipRenderResize() {
     const size = getNativePipRenderSize();
     if (!size) return;
     try {
-      embeddedMpv.command(null, { type: 'resize', ...size });
+      embeddedMpv.commandFromMain({ type: 'resize', ...size });
     } catch (error) {
       console.warn('[Aura Player] Could not resize native PiP output:', error?.message || error);
     }
@@ -304,7 +304,7 @@ function registerEmbeddedMpvIpc() {
     if (!command || !['toggle-pause', 'play', 'pause', 'seek', 'volume', 'mute'].includes(command.type)) {
       throw new TypeError('دستور کنترل پنجرهٔ تصویر در تصویر مجاز نیست.');
     }
-    return embeddedMpv.command(null, command);
+    return embeddedMpv.commandFromMain(command);
   });
   ipcMain.handle('aura:pip-close', (event) => {
     assertTrustedPipRenderer(event);
