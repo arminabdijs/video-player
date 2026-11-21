@@ -47,9 +47,12 @@ test('OS-opened media enters the regular playlist and embedded playback surface'
   assert.match(script, /if \(item\.externalPath\) \{/);
 });
 
-test('native presentation traffic is paused when the app is minimized and resumed on restore', () => {
-  assert.match(main, /mainWindow\.on\('minimize'.*setFrameOutputEnabled\(false\)/);
-  assert.match(main, /mainWindow\.on\('restore'.*setFrameOutputEnabled\(true\)/);
+test('native presentation pauses on minimize unless PiP owns the live frame surface', () => {
+  assert.match(main, /mainWindow\.on\('minimize',[\s\S]*?const pipActive = Boolean\(pipWindow && !pipWindow\.isDestroyed\(\)\)/);
+  assert.match(main, /if \(pipActive && embeddedMpv\?\.detachFrameTarget\('main'\)\)/);
+  assert.match(main, /embeddedMpv\?\.setFrameOutputEnabled\(pipActive\)/);
+  assert.match(main, /mainWindow\.on\('restore',[\s\S]*?setFrameOutputEnabled\(true\)/);
+  assert.match(main, /attachFrameTarget\('main', mainWindow\)/);
   assert.match(host, /setFrameOutputEnabled\(enabled\)/);
   assert.match(native, /g_frameOutputEnabled/);
   assert.match(native, /command == "frames-enabled"/);
