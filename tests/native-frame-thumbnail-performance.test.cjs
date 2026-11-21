@@ -129,7 +129,7 @@ test('transferred frame ArrayBuffer is wrapped directly without a second ImageDa
 
 test('native viewport scaling lets libmpv upscale low-resolution media before Canvas presentation', () => {
   const native = read('native/mpv-frame-host/main.cpp');
-  const helper = native.match(/std::pair<int, int> fitVideoOutputWithinBounds\([\s\S]*?\n}\n/);
+  const helper = native.match(/std::pair<int, int> fitVideoOutputWithinBounds\([\s\S]*?\r?\n\s*}\r?\n/);
   assert.ok(helper, 'viewport aspect-fit helper should exist');
   assert.match(helper[0], /sourceAspect/);
   assert.match(helper[0], /boundsAspect/);
