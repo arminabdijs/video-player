@@ -189,18 +189,26 @@ async function openNativePictureInPicture(event) {
   }
 }
 
+function getNativePipRenderSize() {
+  if (!pipWindow || pipWindow.isDestroyed()) return null;
+  const bounds = pipWindow.getContentBounds();
+  const display = screen.getDisplayMatching(pipWindow.getBounds());
+  const scale = Math.max(1, Math.min(2, Number(display?.scaleFactor) || 1));
+  return {
+    width: Math.max(480, Math.min(1920, Math.round(bounds.width * scale))),
+    height: Math.max(270, Math.min(1080, Math.round(bounds.height * scale))),
+  };
+}
+
 function schedulePipRenderResize() {
   if (pipResizeTimer) clearTimeout(pipResizeTimer);
   pipResizeTimer = setTimeout(() => {
     pipResizeTimer = null;
-    if (!pipWindow || pipWindow.isDestroyed() || !embeddedMpv?.activeSession) return;
-    const bounds = pipWindow.getContentBounds();
-    const display = screen.getDisplayMatching(pipWindow.getBounds());
-    const scale = Math.max(1, Math.min(2, Number(display?.scaleFactor) || 1));
-    const width = Math.max(320, Math.min(1920, Math.round(bounds.width * scale)));
-    const height = Math.max(180, Math.min(1080, Math.round(bounds.height * scale)));
+    if (!embeddedMpv?.activeSession) return;
+    const size = getNativePipRenderSize();
+    if (!size) return;
     try {
-      embeddedMpv.command(null, { type: 'resize', width, height });
+      embeddedMpv.command(null, { type: 'resize', ...size });
     } catch (error) {
       console.warn('[Aura Player] Could not resize native PiP output:', error?.message || error);
     }
@@ -256,7 +264,10 @@ function assertTrustedRenderer(event) {
 function registerEmbeddedMpvIpc() {
   ipcMain.handle('aura:embedded-mpv-start', (event, payload) => {
     assertTrustedRenderer(event);
-    return embeddedMpv.start(event, payload?.filePath, payload?.startTime, payload?.size);
+    // While PiP is detached, render near the floating window's physical size
+    // instead of continuing to push full-screen frames to both renderers.
+    const size = getNativePipRenderSize() || payload?.size;
+    return embeddedMpv.start(event, payload?.filePath, payload?.startTime, size);
   });
   ipcMain.handle('aura:embedded-mpv-command', (event, command) => {
     assertTrustedRenderer(event);
