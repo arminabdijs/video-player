@@ -217,3 +217,24 @@ test('native helper joins its command reader after the host closes stdin', () =>
   assert.match(native, /reader\.join\(\)/);
   assert.doesNotMatch(native, /reader\.detach\(\)/);
 });
+
+test('desktop prewarms libmpv and OpenGL during window loading, then loads the first file into the ready process', () => {
+  const main = read('desktop/main.cjs');
+  const host = read('desktop/embedded-mpv-host.cjs');
+  const native = read('native/mpv-frame-host/main.cpp');
+
+  assert.match(main, /embeddedMpv\.prewarm\(\{ width: 1280, height: 720 \}\)/);
+  assert.match(main, /did-finish-load'[\s\S]*?attachFrameTarget\('main', mainWindow\)[\s\S]*?flushPendingMediaFiles/);
+  assert.match(host, /prewarm\(requestedSize = \{\}\)/);
+  assert.match(host, /waitForSessionReady\(session\)/);
+  assert.match(host, /loadIntoWarmSession\(existing, filePath, requestedStartTime, requestedSize\)/);
+  assert.match(host, /load-file-hex \$\{encodedPath\} \$\{startTime\}/);
+  assert.match(host, /Reusing the warmed native engine/);
+  assert.match(native, /bool warmup = false/);
+  assert.match(native, /arg == "--warmup"/);
+  assert.match(native, /if \(!options\.warmup\)[\s\S]*?mpv_command\(mpv, loadArgs\)/);
+  assert.match(native, /command == "load-file-hex"/);
+  assert.match(native, /g_seekOnFileLoaded\.store/);
+  assert.match(native, /g_seekOnFileLoaded\.exchange/);
+  assert.match(native, /const std::uint64_t requestedSize = g_requestedSize\.exchange/);
+});
