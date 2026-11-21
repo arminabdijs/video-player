@@ -287,6 +287,7 @@ async function openNativePictureInPicture(event) {
     rememberPipBounds(window);
     schedulePipRenderResize();
   });
+  window.on('close', () => rememberPipBounds(window));
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (navigationEvent, targetUrl) => {
     if (!isTrustedApplicationDocument(targetUrl, path.join(__dirname, 'pip.html'))) {
