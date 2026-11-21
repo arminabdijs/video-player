@@ -112,7 +112,7 @@ test('libmpv exposes adaptive quality profiles plus color-managed HDR-to-SDR out
     'target-prim', 'bt.709', 'target-trc', 'srgb', 'tone-mapping',
     'bt.2390', 'target-peak', 'auto', 'deband', 'deinterlace',
   ]) assert.ok(source.includes(`"${option}"`), `missing quality option: ${option}`);
-  assert.match(source, /intel-integrated-balanced/);
+  assert.match(source, /low-power-balanced-lanczos-mitchell-rgba8-auto-threads/);
   assert.match(source, /setQualityOption\("deband", "no"\)/);
   assert.match(source, /setQualityOption\("interpolation", "no"\)/);
 });
