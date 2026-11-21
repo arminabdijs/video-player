@@ -593,6 +593,16 @@ class EmbeddedMpvHost {
 
   command(event, command) {
     this.assertRenderer(event);
+    return this.writeCommand(command);
+  }
+
+  // Internal Electron-main entry point. Callers must validate the originating
+  // BrowserWindow before invoking this method; renderer IPC must use command().
+  commandFromMain(command) {
+    return this.writeCommand(command);
+  }
+
+  writeCommand(command) {
     if (!this.child || this.child.killed || !this.child.stdin.writable) return { sent: false };
 
     let line;
