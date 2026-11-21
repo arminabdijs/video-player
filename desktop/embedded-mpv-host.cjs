@@ -160,7 +160,7 @@ class EmbeddedMpvHost {
   prewarm(requestedSize = {}) {
     if (this.prewarmPromise) return this.prewarmPromise;
     if (this.activeSession?.isWarmup && this.activeSession.child && !this.activeSession.child.killed) {
-      return this.waitForSessionReady(this.activeSession).then(() => ({ started: true, prewarmed: true }));
+      return Promise.resolve({ started: true, prewarmed: true, ready: this.activeSession.ready });
     }
 
     const operation = this.startQueue.then(
@@ -211,10 +211,7 @@ class EmbeddedMpvHost {
       const existing = this.activeSession;
       if (existing?.child && !existing.child.killed) {
         try {
-          await this.waitForSessionReady(existing);
-          if (this.activeSession === existing && existing.child && !existing.child.killed) {
-            return this.loadIntoSession(existing, filePath, requestedStartTime, requestedSize);
-          }
+          return this.loadIntoSession(existing, filePath, requestedStartTime, requestedSize);
         } catch (error) {
           console.warn('[Aura Player] Existing native engine is not reusable; restarting it for this file:', error?.message || error);
           await this.stop();
@@ -346,8 +343,7 @@ class EmbeddedMpvHost {
     });
 
     if (warmup) {
-      await this.waitForSessionReady(session);
-      console.info('[Aura Player] Native video engine is warmed and ready for instant file loading.');
+      console.info('[Aura Player] Native warmup process launched alongside the application UI.');
       return { started: true, prewarmed: true, engine: 'libmpv-render-host' };
     }
 
