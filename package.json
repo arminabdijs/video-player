@@ -17,7 +17,7 @@
     "desktop:dist:deb": "npm run native:build && node scripts/build-deb.cjs",
     "native:build": "node scripts/build-native-engine.cjs",
     "desktop:integrate:linux": "node scripts/integrate-linux-desktop.cjs",
-    "desktop:dist:windows:setup": "electron-builder --win nsis",
+    "desktop:dist:windows:setup": "electron-builder --win nsis --publish never",
     "desktop:dist:current": "node scripts/build-current-installer.cjs"
   },
   "devDependencies": {
