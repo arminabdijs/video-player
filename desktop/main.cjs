@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const { EmbeddedMpvHost } = require('./embedded-mpv-host.cjs');
 const { isTrustedApplicationDocument, isTrustedRendererEvent } = require('./trusted-renderer.cjs');
@@ -8,6 +8,8 @@ const { findMediaArgument, describeMediaFile } = require('./media-arguments.cjs'
 
 const APP_ROOT = app.getAppPath();
 let mainWindow = null;
+let pipWindow = null;
+let pipResizeTimer = null;
 let embeddedMpv = null;
 let isQuitting = false;
 let rendererReady = false;
@@ -79,7 +81,11 @@ function createMainWindow() {
     flushPendingMediaFiles();
   });
   mainWindow.once('ready-to-show', () => mainWindow?.show());
-  mainWindow.on('minimize', () => embeddedMpv?.setFrameOutputEnabled(false));
+  mainWindow.on('minimize', () => {
+    // Keep native frames flowing while the independent always-on-top PiP
+    // surface is visible; otherwise audio would continue over a frozen image.
+    embeddedMpv?.setFrameOutputEnabled(Boolean(pipWindow && !pipWindow.isDestroyed()));
+  });
   mainWindow.on('restore', () => embeddedMpv?.setFrameOutputEnabled(true));
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
@@ -95,6 +101,124 @@ function createMainWindow() {
   });
 
   void mainWindow.loadFile(path.join(APP_ROOT, 'index.html'));
+}
+
+async function openNativePictureInPicture(event) {
+  assertTrustedRenderer(event);
+  if (!embeddedMpv?.activeSession || !embeddedMpv.child || embeddedMpv.child.killed) {
+    throw new Error('برای باز کردن تصویر در تصویر، ابتدا یک ویدئوی دسکتاپ را پخش کن.');
+  }
+
+  if (pipWindow && !pipWindow.isDestroyed()) {
+    pipWindow.setAlwaysOnTop(true, 'screen-saver');
+    pipWindow.showInactive();
+    pipWindow.moveTop();
+    return { active: true };
+  }
+
+  const window = new BrowserWindow({
+    width: 480,
+    height: 270,
+    minWidth: 320,
+    minHeight: 180,
+    maxWidth: 960,
+    maxHeight: 640,
+    useContentSize: true,
+    backgroundColor: '#08090d',
+    show: false,
+    frame: false,
+    resizable: true,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    closable: true,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    title: 'Aura Player — تصویر در تصویر',
+    icon: path.join(APP_ROOT, 'assets', 'icons', 'aura-player.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'pip-preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+    },
+  });
+  pipWindow = window;
+
+  const keepOnTop = () => {
+    if (!window.isDestroyed()) window.setAlwaysOnTop(true, 'screen-saver');
+  };
+  window.on('blur', keepOnTop);
+  window.on('show', keepOnTop);
+  window.on('resize', schedulePipRenderResize);
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.on('will-navigate', (navigationEvent, targetUrl) => {
+    if (!isTrustedApplicationDocument(targetUrl, path.join(__dirname, 'pip.html'))) {
+      navigationEvent.preventDefault();
+    }
+  });
+  window.on('closed', () => {
+    if (pipResizeTimer) {
+      clearTimeout(pipResizeTimer);
+      pipResizeTimer = null;
+    }
+    embeddedMpv?.detachFrameTarget('pip');
+    if (pipWindow === window) pipWindow = null;
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('aura:pip-state', { active: false });
+    }
+    if (mainWindow?.isMinimized()) embeddedMpv?.setFrameOutputEnabled(false);
+  });
+
+  try {
+    await window.loadFile(path.join(__dirname, 'pip.html'));
+    if (pipWindow !== window || window.isDestroyed()) throw new Error('پنجرهٔ تصویر در تصویر بسته شد.');
+    embeddedMpv.attachFrameTarget('pip', window);
+    window.setAlwaysOnTop(true, 'screen-saver');
+    window.showInactive();
+    window.moveTop();
+    mainWindow?.webContents.send('aura:pip-state', { active: true });
+    schedulePipRenderResize();
+    return { active: true };
+  } catch (error) {
+    if (!window.isDestroyed()) window.close();
+    throw error;
+  }
+}
+
+function schedulePipRenderResize() {
+  if (pipResizeTimer) clearTimeout(pipResizeTimer);
+  pipResizeTimer = setTimeout(() => {
+    pipResizeTimer = null;
+    if (!pipWindow || pipWindow.isDestroyed() || !embeddedMpv?.activeSession) return;
+    const bounds = pipWindow.getContentBounds();
+    const display = screen.getDisplayMatching(pipWindow.getBounds());
+    const scale = Math.max(1, Math.min(2, Number(display?.scaleFactor) || 1));
+    const width = Math.max(320, Math.min(1920, Math.round(bounds.width * scale)));
+    const height = Math.max(180, Math.min(1080, Math.round(bounds.height * scale)));
+    try {
+      embeddedMpv.command(null, { type: 'resize', width, height });
+    } catch (error) {
+      console.warn('[Aura Player] Could not resize native PiP output:', error?.message || error);
+    }
+  }, 120);
+}
+
+function closeNativePictureInPicture() {
+  if (!pipWindow || pipWindow.isDestroyed()) return { active: false };
+  pipWindow.close();
+  return { active: false };
+}
+
+function assertTrustedPipRenderer(event) {
+  if (!pipWindow || pipWindow.isDestroyed() ||
+      !isTrustedRendererEvent(event, pipWindow.webContents, path.join(__dirname, 'pip.html'))) {
+    const senderUrl = typeof event?.senderFrame?.url === 'string' ? event.senderFrame.url : 'unavailable';
+    throw new Error(`Untrusted IPC sender: expected the Aura Player PiP document; received ${senderUrl}.`);
+  }
 }
 
 function queueMediaFile(filePath) {
@@ -146,10 +270,26 @@ function registerEmbeddedMpvIpc() {
     assertTrustedRenderer(event);
     return embeddedMpv.generateThumbnail(event, payload?.filePath, payload?.time);
   });
+  ipcMain.handle('aura:desktop-pip-set', (event, active) => {
+    assertTrustedRenderer(event);
+    return active ? openNativePictureInPicture(event) : closeNativePictureInPicture();
+  });
+  ipcMain.handle('aura:pip-command', (event, command) => {
+    assertTrustedPipRenderer(event);
+    if (!command || !['toggle-pause', 'play', 'pause', 'seek', 'volume', 'mute'].includes(command.type)) {
+      throw new TypeError('دستور کنترل پنجرهٔ تصویر در تصویر مجاز نیست.');
+    }
+    return embeddedMpv.command(null, command);
+  });
+  ipcMain.handle('aura:pip-close', (event) => {
+    assertTrustedPipRenderer(event);
+    return closeNativePictureInPicture();
+  });
 }
 
 app.on('before-quit', () => {
   isQuitting = true;
+  if (pipWindow && !pipWindow.isDestroyed()) pipWindow.destroy();
   void embeddedMpv?.dispose();
 });
 
