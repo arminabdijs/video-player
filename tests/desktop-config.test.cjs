@@ -169,6 +169,12 @@ test('native Windows PiP is an independent always-on-top window and keeps playba
   assert.match(mainSource, /attachFrameTarget\('main', mainWindow\)/);
   assert.match(mainSource, /backgroundThrottling: false/);
   assert.match(mainSource, /assertTrustedPipRenderer/);
+  assert.match(mainSource, /assertTrustedPipRenderer\(event\);[\s\S]*?embeddedMpv\.commandFromMain\(command\)/);
+  assert.match(mainSource, /embeddedMpv\.commandFromMain\(\{ type: 'resize', \.\.\.size \}\)/);
+  assert.doesNotMatch(mainSource, /embeddedMpv\.command\(null/);
+  assert.match(hostSource, /command\(event, command\)\s*\{\s*this\.assertRenderer\(event\);\s*return this\.writeCommand\(command\)/);
+  assert.match(hostSource, /commandFromMain\(command\)/);
+  assert.match(hostSource, /writeCommand\(command\)/);
   assert.match(preloadSource, /setNativePictureInPicture/);
   assert.match(preloadSource, /onNativePictureInPictureState/);
   assert.match(hostSource, /attachFrameTarget\(id, targetWindow\)/);
