@@ -155,6 +155,9 @@ test('native RGBA frames are fanned out to each desktop surface with shared ACK 
   assert.doesNotMatch(hostSource, /target\.port\.postMessage\([\s\S]*?\},\s*\[[^\]]+\]\)/);
   assert.match(hostSource, /Buffer\.allocUnsafeSlow\(count\)/);
   assert.match(hostSource, /session\.pendingFrameAcks/);
+  assert.match(hostSource, /const pipOwnsFrameCadence = session\.ports\.has\('pip'\)/);
+  assert.match(hostSource, /const mustAcknowledge = id === 'pip' \|\| !pipOwnsFrameCadence/);
+  assert.match(hostSource, /if \(mustAcknowledge\) session\.pendingFrameAcks\.add\(id\)/);
   assert.match(hostSource, /acknowledgeFrame\(session\)/);
   assert.match(hostSource, /session\.child\.stdin\.write\('frame-ack\\n'\)/);
 });
@@ -179,6 +182,10 @@ test('native Windows PiP is an independent always-on-top window and keeps playba
   assert.match(preloadSource, /onNativePictureInPictureState/);
   assert.match(hostSource, /attachFrameTarget\(id, targetWindow\)/);
   assert.match(hostSource, /detachFrameTarget\(id\)/);
+  assert.match(hostSource, /commandFromMain\(command\)/);
+  assert.match(hostSource, /writeCommand\(command\)/);
+  assert.match(mainSource, /assertTrustedPipRenderer\(event\);[\s\S]*?embeddedMpv\.commandFromMain\(command\)/);
+  assert.doesNotMatch(mainSource, /embeddedMpv\.command\(null/);
   assert.match(pipPreloadSource, /aura:embedded-mpv-channel/);
   assert.match(pipPreloadSource, /postMessage\(\{ type: 'ack', sequence: frame\.sequence \}\)/);
   assert.match(pipHtmlSource, /id="pipCanvas"/);
