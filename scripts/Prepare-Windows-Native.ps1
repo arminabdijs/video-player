@@ -61,8 +61,15 @@ $ucrtBin = Split-Path -Parent $gccPath
 $ucrtPrefix = Split-Path -Parent $ucrtBin
 $sdlConfig = Join-Path $ucrtPrefix 'lib/cmake/SDL2/SDL2Config.cmake'
 $sdlDll = Join-Path $ucrtBin 'SDL2.dll'
-$sdlPackage = (& pacman -Q mingw-w64-ucrt-x86_64-SDL2 2>$null | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or $sdlPackage -ne 'mingw-w64-ucrt-x86_64-SDL2 2.32.10-1') {
+if (-not (Get-Command msys2 -ErrorAction SilentlyContinue)) {
+    Stop-Build 'The MSYS2 command helper is unavailable. Ensure msys2/setup-msys2 runs before this script.'
+}
+# pacman is part of MSYS2, not the native Windows PowerShell PATH.
+# Use the setup-msys2 helper to execute it inside the configured UCRT64 environment.
+$sdlPackageOutput = & msys2 -c 'pacman -Q mingw-w64-ucrt-x86_64-SDL2' 2>$null
+$sdlPackageExitCode = $LASTEXITCODE
+$sdlPackage = ($sdlPackageOutput | Out-String).Trim()
+if ($sdlPackageExitCode -ne 0 -or $sdlPackage -ne 'mingw-w64-ucrt-x86_64-SDL2 2.32.10-1') {
     Stop-Build "Unexpected SDL2 package version. Expected 2.32.10-1; found '$sdlPackage'. Update the pinned runtime notice and CI validation deliberately before changing this version."
 }
 if (-not (Test-Path $sdlConfig) -or -not (Test-Path $sdlDll)) {
