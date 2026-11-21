@@ -100,6 +100,7 @@ function createMainWindow() {
   });
   mainWindow.on('closed', () => {
     rendererReady = false;
+    if (pipWindow && !pipWindow.isDestroyed()) pipWindow.close();
     void embeddedMpv?.dispose();
     embeddedMpv = null;
     mainWindow = null;
