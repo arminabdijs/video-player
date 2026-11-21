@@ -50,6 +50,7 @@ test('Windows release workflow builds the pinned offline native runtime and uplo
   assert.match(workflow, /npm run native:build/);
   assert.match(workflow, /npm run codec:diagnose/);
   assert.match(workflow, /desktop:dist:windows:setup/);
+  assert.match(workflow, /desktop:dist:windows:setup -- --publish never/);
   assert.match(workflow, /upload-artifact@v4/);
   assert.match(sdkPreparation, /libmpv-v0\.42\.0-x86_64-w64-mingw32-lgpl\.zip/);
   assert.match(sdkPreparation, /8e5f77430efc53ef175804ba6618527e3af0448a0dcabf04d3cc72659d1a6fce/);

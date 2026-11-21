@@ -51,7 +51,7 @@ jobs:
           npm run codec:diagnose
 
       - name: Build Windows NSIS installer
-        run: npm run desktop:dist:windows:setup
+        run: npm run desktop:dist:windows:setup -- --publish never
 
       - name: Validate installer output
         shell: pwsh
