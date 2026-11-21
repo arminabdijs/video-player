@@ -81,7 +81,10 @@ test('desktop local files prefer measured power-efficient browser decoding and r
   assert.match(source, /item\.externalPath \? item\.browserUrl : URL\.createObjectURL\(item\.file\)/);
   assert.match(native, /setOption\("hwdec", "d3d11va-copy,auto-safe"\)/);
   assert.match(native, /setOption\("hwdec-software-fallback", "yes"\)/);
-  assert.match(native, /setQualityOption\("vd-lavc-threads", "0"\)/);
+  assert.match(native, /setQualityOption\("vd-lavc-threads", "2"\)/);
+  assert.match(native, /setOption\("hwdec-threads", lowPowerDevice \? "2" : "0"\)/);
+  assert.match(native, /SDL_GetSystemRAM\(\)/);
+  assert.match(native, /const bool lowPowerDevice = logicalCpuCount <= 4/);
   assert.doesNotMatch(read('desktop/main.cjs'), /embeddedMpv\.prewarm\(/);
   assert.match(host, /attachSessionFramePort/);
 });
@@ -242,11 +245,36 @@ test('native fallback is lazy and PiP does not duplicate full-rate frame copies 
 });
 
 
-test('browser playback is monitored for real dropped frames and switches to libmpv when visibly stalling', () => {
+test('browser playback measures interval frame drops and falls back only after sustained decode stalls', () => {
   const script = read('scripts/script.js');
   assert.match(script, /navigator\.mediaCapabilities\.decodingInfo/);
-  assert.match(script, /const droppedRatio = decodedFrames > 0 \? droppedFrames \/ decodedFrames : 0/);
-  assert.match(script, /decodedFrames >= 90 && droppedRatio >= 0\.18/);
+  assert.match(script, /current\.total - baseline\.total/);
+  assert.match(script, /current\.dropped - baseline\.dropped/);
+  assert.match(script, /observedFrames >= 30 &&\s*droppedDelta >= 6 && droppedRatio >= 0\.15/);
   assert.match(script, /tryDesktopMpvFallback\(\)/);
-  assert.match(script, /startVideoFrameWatchdog\(\)[\s\S]*?\}, 5000\)/);
+  assert.match(script, /startVideoFrameWatchdog\(\)[\s\S]*?\}, 4000\)/);
+});
+
+
+test('desktop browser decode selection covers common video codec families across supported containers', () => {
+  const script = read('scripts/script.js');
+  for (const codec of [
+    'avc1.42E01E', 'avc1.640028', 'hvc1.1.6.L93.B0', 'hev1.1.6.L93.B0',
+    'av01.0.05M.08', 'vp09.00.10.08', 'vp8', 'mp4v.20.9', 'theora',
+    'mp2v.60.40.13',
+  ]) assert.ok(script.includes(codec), `missing browser decode profile: ${codec}`);
+  assert.match(script, /extensions: \['mp4', 'm4v', 'mov'/);
+  assert.match(script, /extensions: \['webm', 'mkv'/);
+  assert.match(script, /extensions: \['ts', 'm2ts', 'm2t', 'mts'\]/);
+  assert.match(script, /Promise\.all\(candidates\)/);
+});
+
+test('native low-resource rendering policy is based on CPU, RAM and software/integrated graphics, not Intel brand alone', () => {
+  const native = read('native/mpv-frame-host/main.cpp');
+  assert.match(native, /const unsigned int logicalCpuCount/);
+  assert.match(native, /const int systemRamMb = SDL_GetSystemRAM\(\)/);
+  assert.match(native, /const bool softwareRenderer/);
+  assert.match(native, /const bool lowPowerDevice = logicalCpuCount <= 4/);
+  assert.match(native, /g_deviceMaxOutputWidth = 1920/);
+  assert.match(native, /g_deviceMaxOutputHeight = 1080/);
 });
