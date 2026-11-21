@@ -2195,6 +2195,11 @@ async function startNativeDesktopPlayback(item, generation) {
     const browserProfile = await getPowerEfficientBrowserDecodeProfile(item);
     if (generation !== playbackGeneration) return false;
     if (browserProfile) {
+      // Switching from a previous native/PiP file to the browser path must
+      // release the decoder, hidden GL context and duplicate frame transport.
+      if (desktopPiPActive) await desktop.setNativePictureInPicture(false);
+      await desktop.stopEmbeddedMpv?.();
+      if (generation !== playbackGeneration) return false;
       startBrowserDesktopPlayback(item, browserProfile, desiredRate);
       return true;
     }
