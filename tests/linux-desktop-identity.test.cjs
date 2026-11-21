@@ -24,7 +24,9 @@ test('desktop Exec safely quotes paths with spaces and special characters', () =
   assert.equal(desktopQuote('/home/test/Aura Player/$media.appimage'), '"/home/test/Aura Player/\\$media.appimage"');
 });
 
-test('Linux integration installs one stable desktop file and all Hicolor icon sizes', () => {
+test('Linux integration installs one stable desktop file and all Hicolor icon sizes', {
+  skip: process.platform !== 'linux',
+}, () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'aura-desktop-test-'));
   const fakeImage = path.join(temp, 'Aura Player.AppImage');
   fs.writeFileSync(fakeImage, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
