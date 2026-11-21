@@ -56,6 +56,7 @@ test('media descriptors expose metadata only and never load media bytes', () => 
     fs.writeFileSync(mediaPath, Buffer.alloc(1024));
     const descriptor = describeMediaFile(mediaPath);
     assert.equal(descriptor.path, mediaPath);
+    assert.equal(descriptor.browserUrl, pathToFileURL(mediaPath).href);
     assert.equal(descriptor.name, 'large-video.mp4');
     assert.equal(descriptor.size, 1024);
     assert.equal(descriptor.extension, 'mp4');
