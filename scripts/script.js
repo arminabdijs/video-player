@@ -2118,30 +2118,51 @@ function safePlay() {
 
 const desktopBrowserDecodeCache = new Map();
 
-const desktopBrowserDecodeProfiles = Object.freeze({
-  mp4: [
-    { contentType: 'video/mp4; codecs="avc1.42E01E"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
-    { contentType: 'video/mp4; codecs="avc1.640028"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
-  ],
-});
+const desktopBrowserDecodeProfiles = Object.freeze([
+  // ISO BMFF containers: AVC, HEVC, AV1, VP9 and MPEG-4 Part 2.
+  { contentType: 'video/mp4; codecs="avc1.42E01E"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
+  { contentType: 'video/mp4; codecs="avc1.640028"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
+  { contentType: 'video/mp4; codecs="hvc1.1.6.L93.B0"', extensions: ['mp4', 'm4v', 'mov'] },
+  { contentType: 'video/mp4; codecs="hev1.1.6.L93.B0"', extensions: ['mp4', 'm4v', 'mov'] },
+  { contentType: 'video/mp4; codecs="av01.0.05M.08"', extensions: ['mp4', 'm4v', 'mov'] },
+  { contentType: 'video/mp4; codecs="vp09.00.10.08"', extensions: ['mp4', 'm4v', 'mov'] },
+  { contentType: 'video/mp4; codecs="mp4v.20.9"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
+
+  // WebM and Matroska containers.
+  { contentType: 'video/webm; codecs="vp8"', extensions: ['webm', 'mkv', 'mk3d', 'ogm'] },
+  { contentType: 'video/webm; codecs="vp09.00.10.08"', extensions: ['webm', 'mkv', 'mk3d', 'ogm'] },
+  { contentType: 'video/webm; codecs="av01.0.05M.08"', extensions: ['webm', 'mkv', 'mk3d', 'ogm'] },
+  { contentType: 'video/x-matroska; codecs="avc1.42E01E"', extensions: ['mkv', 'mk3d', 'ogm'] },
+  { contentType: 'video/x-matroska; codecs="hvc1.1.6.L93.B0"', extensions: ['mkv', 'mk3d'] },
+  { contentType: 'video/x-matroska; codecs="av01.0.05M.08"', extensions: ['mkv', 'mk3d'] },
+  { contentType: 'video/x-matroska; codecs="vp09.00.10.08"', extensions: ['mkv', 'mk3d'] },
+  { contentType: 'video/x-matroska; codecs="mp4v.20.9"', extensions: ['mkv', 'ogm'] },
+
+  // Legacy and transport-stream containers supported by some Chromium builds.
+  { contentType: 'video/ogg; codecs="theora"', extensions: ['ogv', 'ogg', 'ogm'] },
+  { contentType: 'video/mpeg; codecs="mp2v.60.40.13"', extensions: ['mpg', 'mpeg', 'mpe', 'm1v', 'm2v', 'vob'] },
+  { contentType: 'video/mp2t; codecs="avc1.42E01E"', extensions: ['ts', 'm2ts', 'm2t', 'mts'] },
+  { contentType: 'video/mp2t; codecs="hvc1.1.6.L93.B0"', extensions: ['ts', 'm2ts', 'm2t', 'mts'] },
+]);
 
 async function getPowerEfficientBrowserDecodeProfile(item) {
   // Keep native frame routing while the custom always-on-top PiP is active.
   if (desktopPiPActive || !navigator.mediaCapabilities?.decodingInfo ||
       typeof videoElement.canPlayType !== 'function') return null;
+
   const fileName = String(item?.name || item?.file?.name || item?.externalPath || '');
   const extension = fileName.split(/[?#]/, 1)[0].split('.').pop().toLowerCase();
-  const profiles = Object.values(desktopBrowserDecodeProfiles).flat()
-    .filter((profile) => profile.extensions.includes(extension));
+  const profiles = desktopBrowserDecodeProfiles.filter((profile) =>
+    profile.extensions.includes(extension));
 
-  for (const profile of profiles) {
-    let support = '';
+  const candidates = profiles.map(async (profile) => {
+    let canPlay = '';
     try {
-      support = videoElement.canPlayType(profile.contentType);
+      canPlay = videoElement.canPlayType(profile.contentType);
     } catch {
-      continue;
+      return null;
     }
-    if (!support || support === 'no') continue;
+    if (!canPlay || canPlay === 'no') return null;
 
     let resultPromise = desktopBrowserDecodeCache.get(profile.contentType);
     if (!resultPromise) {
@@ -2151,17 +2172,19 @@ async function getPowerEfficientBrowserDecodeProfile(item) {
           contentType: profile.contentType,
           width: 1920,
           height: 1080,
-          bitrate: 10_000_000,
-          framerate: 30,
+          bitrate: 12_000_000,
+          framerate: 60,
         },
       }).catch(() => null);
       desktopBrowserDecodeCache.set(profile.contentType, resultPromise);
     }
 
     const result = await resultPromise;
-    if (result?.supported && result.smooth && result.powerEfficient) return profile;
-  }
-  return null;
+    return result?.supported && result.smooth && result.powerEfficient ? profile : null;
+  });
+
+  const results = await Promise.all(candidates);
+  return results.find(Boolean) || null;
 }
 
 function startBrowserDesktopPlayback(item, profile, desiredRate) {
@@ -2178,8 +2201,8 @@ function startBrowserDesktopPlayback(item, profile, desiredRate) {
   videoElement.src = sourceUrl;
   videoElement.load();
   safePlay();
-  console.info(`[Aura Player] Browser hardware decoding selected for ${profile.contentType}; bypassing native RGBA frame copies.`);
-  showPlayerStatus('پخش با شتاب‌دهی سخت‌افزاری سیستم فعال شد.', { timeout: 1200 });
+  console.info(`[Aura Player] Browser hardware decode candidate selected: ${profile.contentType}; real frame telemetry remains authoritative.`);
+  showPlayerStatus('در حال انتخاب مسیر کم‌مصرف پخش…', { timeout: 1400 });
 }
 
 async function startNativeDesktopPlayback(item, generation) {
