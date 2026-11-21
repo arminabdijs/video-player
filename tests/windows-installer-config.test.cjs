@@ -52,3 +52,11 @@ test('MSYS2 package metadata is queried through the MSYS2 shell helper, not nati
   assert.match(prepareScript, /& msys2 -c 'pacman -Q mingw-w64-ucrt-x86_64-SDL2'/);
   assert.doesNotMatch(prepareScript, /& pacman -Q/);
 });
+
+test('Windows native build uses the exact UCRT64 prefix returned by setup-msys2', () => {
+  assert.match(prepareScript, /\$env:MSYS2_LOCATION/);
+  assert.match(prepareScript, /Join-Path \$msys2Root 'ucrt64'/);
+  assert.match(prepareScript, /Join-Path \$ucrtPrefix 'bin'/);
+  assert.match(prepareScript, /\$env:GITHUB_PATH/);
+  assert.doesNotMatch(prepareScript, /\$gccPath = \(Get-Command gcc\)\.Source/);
+});
