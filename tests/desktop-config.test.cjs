@@ -175,7 +175,8 @@ test('native Windows PiP is an independent always-on-top window and keeps playba
   assert.match(pipHtmlSource, /id="pipCanvas"/);
   assert.match(pipPlayerSource, /context\.putImageData/);
   assert.match(pipPlayerSource, /toggle-pause/);
-  assert.match(pipPlayerSource, /id="pipSeek"|pipSeek/);
+  assert.match(pipHtmlSource, /id="pipSeek"/);
+  assert.match(pipPlayerSource, /seekSlider/);
   assert.match(playerSource, /setNativePictureInPicture/);
   assert.doesNotMatch(playerSource, /playerStage\.classList\.toggle\('is-picture-in-picture'\)/);
 });
