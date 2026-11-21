@@ -2123,10 +2123,6 @@ const desktopBrowserDecodeProfiles = Object.freeze({
     { contentType: 'video/mp4; codecs="avc1.42E01E"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
     { contentType: 'video/mp4; codecs="avc1.640028"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
   ],
-  webm: [
-    { contentType: 'video/webm; codecs="vp09.00.10.08"', extensions: ['webm'] },
-    { contentType: 'video/webm; codecs="vp8"', extensions: ['webm'] },
-  ],
 });
 
 async function getPowerEfficientBrowserDecodeProfile(item) {
@@ -2156,7 +2152,7 @@ async function getPowerEfficientBrowserDecodeProfile(item) {
           width: 1920,
           height: 1080,
           bitrate: 10_000_000,
-          framerate: 60,
+          framerate: 30,
         },
       }).catch(() => null);
       desktopBrowserDecodeCache.set(profile.contentType, resultPromise);
