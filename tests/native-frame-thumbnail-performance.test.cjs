@@ -214,12 +214,15 @@ test('native frame transport uses one tight Buffer allocation and avoids a secon
   assert.doesNotMatch(host, /data\.set\(frame\.pixelData\)/);
 });
 
-test('Intel integrated rendering caps presentation to 1080p while preserving source-resolution decode', () => {
+test('low-resource systems cap presentation to 1080p while preserving source-resolution decode', () => {
   const native = read('native/mpv-frame-host/main.cpp');
-  assert.match(native, /gpuLower\.find\("intel"\)/);
+  assert.match(native, /intelIntegratedGpu/);
+  assert.match(native, /logicalCpuCount <= 4/);
+  assert.match(native, /systemRamMb <= 8192/);
+  assert.match(native, /softwareRenderer/);
   assert.match(native, /g_deviceMaxOutputWidth = 1920/);
   assert.match(native, /g_deviceMaxOutputHeight = 1080/);
-  assert.match(native, /render-size-cap.*1920x1080-for-integrated-intel/);
+  assert.match(native, /render-size-cap.*1920x1080-for-low-resource-device/);
   assert.match(native, /hwdec-current/);
 });
 
