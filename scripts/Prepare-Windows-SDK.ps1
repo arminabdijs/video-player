@@ -115,16 +115,17 @@ if ($sdlArchiveHash -ne $sdl2Sha256) {
     Stop-Build "SDL2 archive SHA-256 mismatch. Expected $sdl2Sha256, received $sdlArchiveHash."
 }
 
-if (-not (Get-ChildItem -Path $sdl2SdkRoot -Filter 'SDL2Config.cmake' -File -Recurse -ErrorAction SilentlyContinue)) {
+if (-not (Get-ChildItem -Path $sdl2SdkRoot -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -in @('SDL2Config.cmake', 'sdl2-config.cmake') })) {
     New-Item -ItemType Directory -Force -Path $sdl2SdkRoot | Out-Null
     Expand-Archive -Path $sdl2Archive -DestinationPath $sdl2SdkRoot -Force
 }
-$sdl2Config = Get-ChildItem -Path $sdl2SdkRoot -Filter 'SDL2Config.cmake' -File -Recurse |
+$sdl2Config = Get-ChildItem -Path $sdl2SdkRoot -File -Recurse |
+    Where-Object { $_.Name -in @('SDL2Config.cmake', 'sdl2-config.cmake') } |
     Select-Object -First 1
 $sdl2Dll = Get-ChildItem -Path $sdl2SdkRoot -Filter 'SDL2.dll' -File -Recurse |
     Where-Object { $_.FullName -match '[\\/]lib[\\/]x64[\\/]SDL2\.dll$' } |
     Select-Object -First 1
-if (-not $sdl2Config) { Stop-Build 'The verified SDL2 package does not contain SDL2Config.cmake.' }
+if (-not $sdl2Config) { Stop-Build 'The verified SDL2 package does not contain an SDL2 CMake config file.' }
 if (-not $sdl2Dll) { Stop-Build 'The verified SDL2 package does not contain the x64 SDL2.dll.' }
 
 $sdl2Dir = $sdl2Config.Directory.FullName
