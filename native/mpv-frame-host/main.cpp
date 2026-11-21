@@ -61,7 +61,7 @@ namespace {
 constexpr std::uint32_t kFrameMagic = 0x41525541U; // "AURA" on little-endian hosts.
 constexpr std::uint32_t kMaxDimension = 8192;
 constexpr std::uint64_t kMaxFrameBytes = 256ULL * 1024ULL * 1024ULL;
-constexpr int kTargetFps = 30; // Balanced frame transport for low-power CPUs; source decode quality/resolution remain unchanged.
+constexpr int kTargetFps = 60; // Output only on decoded-frame callbacks; this is a ceiling, not forced frame generation.
 constexpr int kPboCount = 1; // A single pending readback prevents stale-frame queues and A/V latency.
 constexpr int kMaxOutputWidth = 3840;
 constexpr int kMaxOutputHeight = 2160;
@@ -798,8 +798,10 @@ int main(int argc, char **argv) {
     std::string gpuIdentity = gpuVendor + " " + gpuRenderer;
     std::string gpuLower = gpuIdentity;
     std::transform(gpuLower.begin(), gpuLower.end(), gpuLower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const unsigned int logicalCpuCount = std::max(1U, std::thread::hardware_concurrency());
     const bool lowPowerIntel = gpuLower.find("intel") != std::string::npos &&
-      (gpuLower.find("hd graphics 620") != std::string::npos ||
+      (logicalCpuCount <= 4 ||
+       gpuLower.find("hd graphics 620") != std::string::npos ||
        gpuLower.find("hd graphics 630") != std::string::npos ||
        gpuLower.find("uhd graphics 600") != std::string::npos ||
        gpuLower.find("uhd graphics 605") != std::string::npos ||
@@ -841,7 +843,16 @@ int main(int argc, char **argv) {
       if (result < 0) throw std::runtime_error(std::string("Could not set MPV option ") + key + ": " + mpv_error_string(result));
     };
     setOption("vo", "libmpv");
+#ifdef _WIN32
+    // The current libmpv OpenGL render API cannot use zero-copy D3D11VA surfaces.
+    // Prefer the copy-back D3D11VA path to offload H.264/HEVC decode from weak
+    // CPUs, then retain mpv's safe automatic choices and software fallback.
+    setOption("hwdec", "d3d11va-copy,auto-safe");
+#else
     setOption("hwdec", "auto-safe");
+#endif
+    setOption("hwdec-software-fallback", "yes");
+    setOption("hwdec-threads", "0");
 
     // High-quality, color-managed output. The renderer now performs final
     // viewport scaling itself, so the high-quality scaler is applied to both
@@ -868,8 +879,8 @@ int main(int argc, char **argv) {
       setQualityOption("interpolation", "no");
       setQualityOption("video-sync", "audio");
       setQualityOption("framedrop", "vo");
-      setQualityOption("vd-lavc-threads", "4");
-      emitEvent("video-quality-profile", "intel-integrated-balanced-lanczos-mitchell-rgba8");
+      setQualityOption("vd-lavc-threads", "0");
+      emitEvent("video-quality-profile", "low-power-balanced-lanczos-mitchell-rgba8-auto-threads");
     } else {
       setQualityOption("scale", "ewa_lanczossharp");
       setQualityOption("cscale", "spline36");
@@ -1192,7 +1203,12 @@ int main(int argc, char **argv) {
         }
         lastFrame = now;
       }
-      SDL_Delay(8); // Reduce busy-loop wakeups while keeping command/frame latency bounded.
+      const bool outputEnabledNow = g_frameOutputEnabled.load(std::memory_order_acquire);
+      const bool framePendingNow = g_frameDirty.load(std::memory_order_acquire);
+      const bool frameInFlightNow = g_frameInFlight.load(std::memory_order_acquire);
+      // Poll quickly only when a decoded frame is waiting to be rendered.
+      // During normal wait/backpressure, sleep longer to reduce CPU wakeups.
+      SDL_Delay(outputEnabledNow && framePendingNow && !frameInFlightNow ? 1 : (outputEnabledNow ? 4 : 8));
     }
 
     g_running.store(false, std::memory_order_relaxed);
