@@ -2137,7 +2137,12 @@ async function startNativeDesktopPlayback(item, generation) {
 
     showPlayerStatus('در حال آماده‌سازی موتور داخلی پخش…', { timeout: 0 });
     await desktop.startEmbeddedMpv(filePath, 0, { width: renderWidth, height: renderHeight });
-    lastNativeOutputSize = { width: renderWidth, height: renderHeight };
+    // The native main process uses the floating window's dimensions while
+    // PiP is active. Mark the main-stage size as unknown so leaving PiP always
+    // sends a fresh full-size resize instead of assuming it is already applied.
+    lastNativeOutputSize = desktopPiPActive
+      ? { width: 0, height: 0 }
+      : { width: renderWidth, height: renderHeight };
     if (generation !== playbackGeneration) {
       // A newer playback request may already be loading into this same warm
       // native process. Never tear the shared engine down from a stale start.
@@ -4304,6 +4309,7 @@ if (window.auraDesktop?.isDesktop) {
   window.auraDesktop.onEmbeddedMpvState(handleEmbeddedMpvState);
   window.auraDesktop.onNativePictureInPictureState((state) => {
     desktopPiPActive = Boolean(state?.active);
+    if (desktopPiPActive) lastNativeOutputSize = { width: 0, height: 0 };
     playerStage?.classList.toggle('desktop-native-pip-active', desktopPiPActive);
     pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
     if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
