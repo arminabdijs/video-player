@@ -2157,6 +2157,7 @@ async function startNativeDesktopPlayback(item, generation) {
     const message = error?.message || 'راه‌اندازی موتور داخلی پخش ناموفق بود.';
     console.warn('[Aura Player] Native-first playback failed; using browser fallback:', message);
     setEmbeddedMpvActive(false);
+    if (desktopPiPActive) void desktop.setNativePictureInPicture?.(false).catch?.(() => {});
     void desktop.stopEmbeddedMpv?.().catch?.(() => {});
 
     if (item.externalPath) {
@@ -2490,6 +2491,7 @@ function renderLiveDrawer() {
 function returnToExplorer(pauseVideo = true) {
   playbackGeneration += 1;
   stopVideoFrameWatchdog();
+  if (desktopPiPActive) void window.auraDesktop?.setNativePictureInPicture(false).catch(() => {});
   setEmbeddedMpvActive(false);
 
   if (window.auraDesktop?.isDesktop && typeof window.auraDesktop.stopMpv === 'function') {
@@ -4177,11 +4179,6 @@ function setEmbeddedMpvActive(active) {
   playerStage.classList.remove('native-mpv-fallback-failed');
   if (!nativeMpvActive) {
     playerStage.classList.remove('is-picture-in-picture');
-    if (desktopPiPActive && typeof window.auraDesktop?.setNativePictureInPicture === 'function') {
-      void window.auraDesktop.setNativePictureInPicture(false).catch((error) => {
-        console.warn('[Aura Player] Could not close PiP after native playback stopped:', error?.message || error);
-      });
-    }
     nativeVideoContext?.clearRect(0, 0, nativeVideoCanvas.width, nativeVideoCanvas.height);
     nativeMpvState.loaded = false;
     nativeMpvState.currentTime = 0;
@@ -4242,8 +4239,10 @@ function handleEmbeddedMpvState(message) {
       const reason = typeof message.reason === 'string' ? message.reason.trim() : '';
       const detail = reason || `کد خروج ${message.code ?? 'نامشخص'}${message.signal ? `، سیگنال ${message.signal}` : ''}`;
       showPlayerStatus(`موتور داخلی پخش متوقف شد: ${detail}`, { error: true, timeout: 0 });
+      if (desktopPiPActive) void window.auraDesktop?.setNativePictureInPicture(false).catch(() => {});
     } else {
       setEmbeddedMpvActive(false);
+      if (desktopPiPActive) void window.auraDesktop?.setNativePictureInPicture(false).catch(() => {});
     }
   }
   if (message.type === 'error') {
@@ -4683,7 +4682,8 @@ pipBtn?.addEventListener('click', (event) => {
   togglePiP();
 });
 
-if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
+if (typeof window.auraDesktop?.setNativePictureInPicture !== 'function' &&
+    (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function')) {
   if (pipBtn) {
     pipBtn.disabled = true;
 
