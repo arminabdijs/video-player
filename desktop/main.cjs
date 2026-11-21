@@ -169,13 +169,25 @@ function rememberPipBounds(window = pipWindow) {
   };
 }
 
-function beginNativePipResize(event, payload) {
-  assertTrustedPipRenderer(event);
-  if (!pipWindow || pipWindow.isDestroyed() ||
-      !PIP_RESIZE_DIRECTIONS.has(payload?.direction)) return false;
+function isTrustedPipResizeEvent(event) {
+  if (!pipWindow || pipWindow.isDestroyed()) {
+    pipResizeState = null;
+    return false;
+  }
+  try {
+    assertTrustedPipRenderer(event);
+    return true;
+  } catch (error) {
+    console.warn('[Aura Player] Ignored an untrusted PiP resize event:', error?.message || error);
+    return false;
+  }
+}
 
-  const screenX = Number(payload.screenX);
-  const screenY = Number(payload.screenY);
+function beginNativePipResize(event, payload) {
+  if (!isTrustedPipResizeEvent(event) || !PIP_RESIZE_DIRECTIONS.has(payload?.direction)) return false;
+
+  const screenX = Number(payload?.screenX);
+  const screenY = Number(payload?.screenY);
   if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return false;
 
   pipResizeState = {
@@ -188,8 +200,7 @@ function beginNativePipResize(event, payload) {
 }
 
 function updateNativePipResize(event, payload) {
-  assertTrustedPipRenderer(event);
-  if (!pipResizeState || !pipWindow || pipWindow.isDestroyed()) return;
+  if (!isTrustedPipResizeEvent(event) || !pipResizeState) return;
 
   const screenX = Number(payload?.screenX);
   const screenY = Number(payload?.screenY);
@@ -226,7 +237,7 @@ function updateNativePipResize(event, payload) {
 }
 
 function endNativePipResize(event) {
-  assertTrustedPipRenderer(event);
+  if (!isTrustedPipResizeEvent(event)) return;
   pipResizeState = null;
   rememberPipBounds(pipWindow);
 }
