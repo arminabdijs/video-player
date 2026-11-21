@@ -58,4 +58,16 @@ contextBridge.exposeInMainWorld('auraPip', Object.freeze({
   close() {
     return ipcRenderer.invoke('aura:pip-close');
   },
+  startResize(direction, screenX, screenY) {
+    if (!['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].includes(direction) ||
+        !Number.isFinite(screenX) || !Number.isFinite(screenY)) return;
+    ipcRenderer.send('aura:pip-resize-start', { direction, screenX, screenY });
+  },
+  updateResize(screenX, screenY) {
+    if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return;
+    ipcRenderer.send('aura:pip-resize-update', { screenX, screenY });
+  },
+  endResize() {
+    ipcRenderer.send('aura:pip-resize-end');
+  },
 }));
