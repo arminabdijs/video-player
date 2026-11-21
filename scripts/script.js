@@ -2139,7 +2139,8 @@ async function startNativeDesktopPlayback(item, generation) {
     await desktop.startEmbeddedMpv(filePath, 0, { width: renderWidth, height: renderHeight });
     lastNativeOutputSize = { width: renderWidth, height: renderHeight };
     if (generation !== playbackGeneration) {
-      void desktop.stopEmbeddedMpv?.();
+      // A newer playback request may already be loading into this same warm
+      // native process. Never tear the shared engine down from a stale start.
       return false;
     }
 
