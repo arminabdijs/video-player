@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const frameListeners = new Set();
 const stateListeners = new Set();
 const pipStateListeners = new Set();
+const windowRestoreListeners = new Set();
 const openMediaListeners = new Set();
 const pendingMediaFiles = [];
 let framePort = null;
@@ -51,6 +52,12 @@ ipcRenderer.on('aura:pip-state', (_event, state) => {
   }
 });
 
+ipcRenderer.on('aura:desktop-window-restored', () => {
+  for (const listener of windowRestoreListeners) {
+    try { listener(); } catch (error) { console.error('[Aura Player] Restore listener failed:', error); }
+  }
+});
+
 contextBridge.exposeInMainWorld('auraDesktop', Object.freeze({
   isDesktop: true,
   getPathForFile(file) {
@@ -85,6 +92,11 @@ contextBridge.exposeInMainWorld('auraDesktop', Object.freeze({
     if (typeof listener !== 'function') throw new TypeError('PiP state listener must be a function.');
     pipStateListeners.add(listener);
     return () => pipStateListeners.delete(listener);
+  },
+  onDesktopWindowRestored(listener) {
+    if (typeof listener !== 'function') throw new TypeError('Restore listener must be a function.');
+    windowRestoreListeners.add(listener);
+    return () => windowRestoreListeners.delete(listener);
   },
   onEmbeddedMpvFrame(listener) {
     if (typeof listener !== 'function') throw new TypeError('Frame listener must be a function.');
