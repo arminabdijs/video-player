@@ -799,21 +799,26 @@ int main(int argc, char **argv) {
     std::string gpuLower = gpuIdentity;
     std::transform(gpuLower.begin(), gpuLower.end(), gpuLower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     const unsigned int logicalCpuCount = std::max(1U, std::thread::hardware_concurrency());
-    const bool lowPowerIntel = gpuLower.find("intel") != std::string::npos &&
-      (logicalCpuCount <= 4 ||
-       gpuLower.find("hd graphics 620") != std::string::npos ||
-       gpuLower.find("hd graphics 630") != std::string::npos ||
-       gpuLower.find("uhd graphics 600") != std::string::npos ||
-       gpuLower.find("uhd graphics 605") != std::string::npos ||
-       gpuLower.find("uhd graphics 610") != std::string::npos ||
-       gpuLower.find("uhd graphics 615") != std::string::npos ||
-       gpuLower.find("uhd graphics 620") != std::string::npos ||
-       gpuLower.find("uhd graphics 630") != std::string::npos);
+    const int systemRamMb = SDL_GetSystemRAM();
+    const bool intelIntegratedGpu = gpuLower.find("intel") != std::string::npos &&
+      (gpuLower.find("hd graphics") != std::string::npos ||
+       gpuLower.find("uhd graphics") != std::string::npos ||
+       gpuLower.find("iris") != std::string::npos);
+    const bool softwareRenderer = gpuLower.find("llvmpipe") != std::string::npos ||
+      gpuLower.find("softpipe") != std::string::npos ||
+      gpuLower.find("gdi generic") != std::string::npos ||
+      gpuLower.find("microsoft basic render") != std::string::npos;
+    // Apply the balanced path to low-resource systems regardless of GPU brand:
+    // Pentium-class CPUs, machines with <=8 GiB RAM, integrated GPUs and
+    // software OpenGL renderers otherwise spend too much time moving pixels.
+    const bool lowPowerDevice = logicalCpuCount <= 4 ||
+      (systemRamMb > 0 && systemRamMb <= 8192) ||
+      intelIntegratedGpu || softwareRenderer;
     // Intel integrated GPUs such as HD 620 benefit from an 8-bit presentation
     // target: the Canvas transport is 8-bit anyway, and RGBA16F adds bandwidth
     // without preserving extra output precision across IPC.
-    const bool preferFloatFramebuffer = !lowPowerIntel;
-    if (lowPowerIntel) {
+    const bool preferFloatFramebuffer = !lowPowerDevice;
+    if (lowPowerDevice) {
       // This class of iGPU shares system memory and is commonly paired with
       // 1080p panels. Rendering a 4K RGBA frame only to copy it through IPC
       // wastes bandwidth; decode stays at source resolution, presentation is
@@ -822,9 +827,11 @@ int main(int argc, char **argv) {
       g_deviceMaxOutputHeight = 1080;
       options.width = std::min(options.width, g_deviceMaxOutputWidth);
       options.height = std::min(options.height, g_deviceMaxOutputHeight);
-      emitEvent("render-size-cap", "1920x1080-for-integrated-intel");
+      emitEvent("render-size-cap", "1920x1080-for-low-resource-device");
     }
-    emitEvent("gpu-profile", lowPowerIntel ? "intel-integrated-balanced" : "high-quality-gpu");
+    emitEvent("gpu-profile", lowPowerDevice ? "low-power-balanced" : "high-quality-gpu");
+    emitEvent("system-profile", "logical-cpus=" + std::to_string(logicalCpuCount) +
+      ",ram-mib=" + std::to_string(std::max(0, systemRamMb)));
     emitEvent("gpu-renderer", gpuIdentity);
 
     // Probe actual render-target precision before configuring libmpv.
@@ -852,7 +859,7 @@ int main(int argc, char **argv) {
     setOption("hwdec", "auto-safe");
 #endif
     setOption("hwdec-software-fallback", "yes");
-    setOption("hwdec-threads", "0");
+    setOption("hwdec-threads", lowPowerDevice ? "2" : "0");
 
     // High-quality, color-managed output. The renderer now performs final
     // viewport scaling itself, so the high-quality scaler is applied to both
@@ -865,8 +872,9 @@ int main(int argc, char **argv) {
       }
       return true;
     };
-    if (lowPowerIntel) {
-      // Balanced profile for low-power integrated GPUs (e.g. Intel HD 620):
+    if (lowPowerDevice) {
+      // Balanced profile for low-resource CPUs/GPUs (including Pentium and
+      // integrated graphics):
       // retain high-quality reconstruction while avoiding costly EWA sharp,
       // sigmoid, deband and float-FBO passes that commonly cause frame pacing
       // stalls on this class of GPU.
@@ -879,7 +887,7 @@ int main(int argc, char **argv) {
       setQualityOption("interpolation", "no");
       setQualityOption("video-sync", "audio");
       setQualityOption("framedrop", "vo");
-      setQualityOption("vd-lavc-threads", "0");
+      setQualityOption("vd-lavc-threads", "2");
       emitEvent("video-quality-profile", "low-power-balanced-lanczos-mitchell-rgba8-auto-threads");
     } else {
       setQualityOption("scale", "ewa_lanczossharp");
