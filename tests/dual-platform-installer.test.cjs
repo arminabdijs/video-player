@@ -54,7 +54,8 @@ test('Windows release workflow builds the pinned offline native runtime and uplo
   assert.match(sdkPreparation, /libmpv-v0\.42\.0-x86_64-w64-mingw32-lgpl\.zip/);
   assert.match(sdkPreparation, /8e5f77430efc53ef175804ba6618527e3af0448a0dcabf04d3cc72659d1a6fce/);
   assert.match(sdkPreparation, /Get-FileHash/);
-  assert.match(sdkPreparation, /vcpkg-installed/);
+  assert.match(sdkPreparation, /SDL2-devel-2\\.32\\.10-VC\\.zip/);
+  assert.match(sdkPreparation, /af347939395a58b365846aaea27391e69f9ec9d4dd650d6ac40802159b418a6e/);
 });
 
 test('installer guide documents both native build hosts and output formats when present', (t) => {

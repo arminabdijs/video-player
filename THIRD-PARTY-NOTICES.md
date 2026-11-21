@@ -15,10 +15,12 @@ The native API headers are distributed by the upstream package. The build workfl
 
 ## SDL2
 
-SDL2 is obtained from the SDL2 port in vcpkg and is distributed under the zlib license.
+The Windows build uses the official SDL2 2.32.10 Visual C x64 development package:
 
 - Project: https://github.com/libsdl-org/SDL
-- Port: https://github.com/microsoft/vcpkg
+- Release: https://github.com/libsdl-org/SDL/releases/tag/release-2.32.10
+- Package: `SDL2-devel-2.32.10-VC.zip`
+- License: zlib license
 
 ## Electron
 
