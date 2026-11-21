@@ -21,8 +21,8 @@ $toolsRoot = [IO.Path]::GetFullPath($ToolsRoot)
 $downloadDir = Join-Path $toolsRoot 'downloads'
 $mpvExtractDir = Join-Path $toolsRoot 'mpv-sdk'
 $runtimeDir = Join-Path $toolsRoot 'mpv-runtime'
-$vcpkgRoot = Join-Path $toolsRoot 'vcpkg'
-$vcpkgInstall = Join-Path $toolsRoot 'vcpkg-installed'
+$sdl2SdkRoot = Join-Path $toolsRoot 'sdl2-sdk'
+$sdl2Archive = Join-Path $downloadDir 'SDL2-devel-2.32.10-VC.zip'
 $mpvArchive = Join-Path $downloadDir 'libmpv-v0.42.0-x86_64-w64-mingw32-lgpl.zip'
 
 New-Item -ItemType Directory -Force -Path $downloadDir, $mpvExtractDir, $runtimeDir | Out-Null
@@ -100,32 +100,35 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path $importLibrary)) {
     Stop-Build 'MSVC could not generate the x64 libmpv import library.'
 }
 
-# Install SDL2 into this project-local tools directory via an isolated vcpkg root.
-$git = Get-RequiredCommand 'git.exe'
-if (-not (Test-Path (Join-Path $vcpkgRoot '.git'))) {
-    if (Test-Path $vcpkgRoot) { Remove-Item -Recurse -Force $vcpkgRoot }
-    & $git clone --depth 1 https://github.com/microsoft/vcpkg.git $vcpkgRoot
-    if ($LASTEXITCODE -ne 0) { Stop-Build 'Could not clone vcpkg into the project-local build tools directory.' }
+# Use the official SDL2 Visual C development package. It includes x64
+# headers, import libraries, runtime DLL and the SDL2 CMake package.
+$sdl2Url = 'https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-devel-2.32.10-VC.zip'
+$sdl2Sha256 = 'af347939395a58b365846aaea27391e69f9ec9d4dd650d6ac40802159b418a6e'
+
+if (-not (Test-Path $sdl2Archive)) {
+    Write-Host '[Aura Player] Downloading the pinned official SDL2 2.32.10 Visual C SDK...'
+    Invoke-WebRequest -Uri $sdl2Url -OutFile $sdl2Archive
 }
-$vcpkgBootstrap = Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat'
-$vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
-if (-not (Test-Path $vcpkgExe)) {
-    & $vcpkgBootstrap -disableMetrics
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $vcpkgExe)) {
-        Stop-Build 'Could not bootstrap the project-local vcpkg executable.'
-    }
+$sdlArchiveHash = (Get-FileHash -Path $sdl2Archive -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($sdlArchiveHash -ne $sdl2Sha256) {
+    Remove-Item -Force $sdl2Archive
+    Stop-Build "SDL2 archive SHA-256 mismatch. Expected $sdl2Sha256, received $sdlArchiveHash."
 }
 
-& $vcpkgExe install sdl2:x64-windows "--x-install-root=$vcpkgInstall" --disable-metrics
-if ($LASTEXITCODE -ne 0) { Stop-Build 'Project-local SDL2 installation failed.' }
-
-$sdl2Dir = Join-Path $vcpkgInstall 'x64-windows\share\sdl2'
-$sdl2Dll = Join-Path $vcpkgInstall 'x64-windows\bin\SDL2.dll'
-if (-not (Test-Path (Join-Path $sdl2Dir 'SDL2Config.cmake'))) {
-    Stop-Build "SDL2 CMake package was not found: $sdl2Dir"
+if (-not (Get-ChildItem -Path $sdl2SdkRoot -Filter 'SDL2Config.cmake' -File -Recurse -ErrorAction SilentlyContinue)) {
+    New-Item -ItemType Directory -Force -Path $sdl2SdkRoot | Out-Null
+    Expand-Archive -Path $sdl2Archive -DestinationPath $sdl2SdkRoot -Force
 }
-if (-not (Test-Path $sdl2Dll)) { Stop-Build "SDL2 runtime DLL was not found: $sdl2Dll" }
-Copy-Item -LiteralPath $sdl2Dll -Destination (Join-Path $runtimeDir 'SDL2.dll') -Force
+$sdl2Config = Get-ChildItem -Path $sdl2SdkRoot -Filter 'SDL2Config.cmake' -File -Recurse |
+    Select-Object -First 1
+$sdl2Dll = Get-ChildItem -Path $sdl2SdkRoot -Filter 'SDL2.dll' -File -Recurse |
+    Where-Object { $_.FullName -match '[\\/]lib[\\/]x64[\\/]SDL2\.dll$' } |
+    Select-Object -First 1
+if (-not $sdl2Config) { Stop-Build 'The verified SDL2 package does not contain SDL2Config.cmake.' }
+if (-not $sdl2Dll) { Stop-Build 'The verified SDL2 package does not contain the x64 SDL2.dll.' }
+
+$sdl2Dir = $sdl2Config.Directory.FullName
+Copy-Item -LiteralPath $sdl2Dll.FullName -Destination (Join-Path $runtimeDir 'SDL2.dll') -Force
 
 $env:MPV_INCLUDE_DIR = $mpvIncludeDir
 $env:MPV_LIB = $importLibrary
