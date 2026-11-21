@@ -2324,9 +2324,9 @@ function playIndex(index, folderVideosList = null) {
 
   const desktop = window.auraDesktop;
   if (desktop?.isDesktop && typeof desktop.startEmbeddedMpv === 'function') {
-    // Desktop uses libmpv first. Chromium is only a fallback if the bundled
-    // native engine cannot open the selected file, avoiding slow browser probing
-    // and audio-only playback on HEVC and uncommon codec/container combinations.
+    // Prefer Chromium only when MediaCapabilities reports smooth, power-efficient
+    // hardware decoding for a common codec. Unsupported or non-efficient files
+    // go directly to libmpv; browser decode errors retain the native fallback.
     void startNativeDesktopPlayback(item, playbackGeneration);
   } else {
     activeObjectURL = URL.createObjectURL(item.file);
@@ -4409,6 +4409,7 @@ function handleExternalMediaOpen(descriptor) {
     const item = {
       file,
       externalPath: descriptor.path,
+      browserUrl: typeof descriptor.browserUrl === 'string' ? descriptor.browserUrl : '',
       size: Math.max(0, Number(descriptor.size) || 0),
       name: descriptor.name,
       baseName: descriptor.name.replace(/\.[^/.]+$/, ''),
