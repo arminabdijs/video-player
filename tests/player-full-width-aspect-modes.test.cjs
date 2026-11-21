@@ -81,6 +81,7 @@ test('the Picture-in-Picture control opens a real desktop window for native Canv
   assert.match(pipRenderer, /context\.putImageData/);
   assert.match(pipRenderer, /toggle-pause/);
   assert.match(main, /PIP_RESIZE_DIRECTIONS/);
+  assert.match(main, /isTrustedPipResizeEvent/);
   assert.match(main, /beginNativePipResize/);
   assert.match(main, /updateNativePipResize/);
   assert.match(main, /getInitialPipBounds\(\)/);
