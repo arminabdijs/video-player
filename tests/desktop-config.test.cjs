@@ -15,6 +15,9 @@ const cmakeSource = fs.readFileSync(path.join(root, 'native/mpv-frame-host/CMake
 const beforePackSource = fs.readFileSync(path.join(root, 'scripts/electron-before-pack.cjs'), 'utf8');
 const trustedRendererSource = fs.readFileSync(path.join(root, 'desktop/trusted-renderer.cjs'), 'utf8');
 const nativeStatusSource = fs.readFileSync(path.join(root, 'desktop/native-status.cjs'), 'utf8');
+const pipPreloadSource = fs.readFileSync(path.join(root, 'desktop/pip-preload.cjs'), 'utf8');
+const pipHtmlSource = fs.readFileSync(path.join(root, 'desktop/pip.html'), 'utf8');
+const pipPlayerSource = fs.readFileSync(path.join(root, 'desktop/pip.js'), 'utf8');
 
 test('desktop build is pinned to the embedded-renderer release', () => {
   assert.equal(packageJson.version, '2.5.13');
@@ -146,12 +149,35 @@ test('native host preserves full startup errors and process exit diagnostics', (
   assert.match(playerSource, /موتور داخلی پخش متوقف شد: \$\{detail\}/);
 });
 
-test('frame ArrayBuffers are structured-cloned over MessagePortMain, not passed as transferable ports', () => {
-  assert.match(hostSource, /this\.port\.postMessage\(\{[\s\S]*?data: frameBuffer,[\s\S]*?\}\);/);
-  assert.doesNotMatch(hostSource, /this\.port\.postMessage\([\s\S]*?\},\s*\[data\.buffer\]\)/);
-  assert.doesNotMatch(hostSource, /this\.port\.postMessage\([\s\S]*?\},\s*\[[^\]]+\]\)/);
+test('native RGBA frames are fanned out to each desktop surface with shared ACK backpressure', () => {
+  assert.match(hostSource, /target\.port\.postMessage\(\{[\s\S]*?data: frameBuffer,[\s\S]*?\}\);/);
+  assert.doesNotMatch(hostSource, /target\.port\.postMessage\([\s\S]*?\},\s*\[data\.buffer\]\)/);
+  assert.doesNotMatch(hostSource, /target\.port\.postMessage\([\s\S]*?\},\s*\[[^\]]+\]\)/);
   assert.match(hostSource, /Buffer\.allocUnsafeSlow\(count\)/);
+  assert.match(hostSource, /session\.pendingFrameAcks/);
+  assert.match(hostSource, /acknowledgeFrame\(session\)/);
   assert.match(hostSource, /session\.child\.stdin\.write\('frame-ack\\n'\)/);
+});
+
+test('native Windows PiP is an independent always-on-top window and keeps playback frames alive', () => {
+  assert.match(mainSource, /new BrowserWindow\(\{[\s\S]*?frame: false,[\s\S]*?skipTaskbar: true,[\s\S]*?alwaysOnTop: true/);
+  assert.match(mainSource, /setAlwaysOnTop\(true, 'screen-saver'\)/);
+  assert.match(mainSource, /showInactive\(\)/);
+  assert.match(mainSource, /attachFrameTarget\('pip'/);
+  assert.match(mainSource, /setFrameOutputEnabled\(Boolean\(pipWindow && !pipWindow\.isDestroyed\(\)\)\)/);
+  assert.match(mainSource, /assertTrustedPipRenderer/);
+  assert.match(preloadSource, /setNativePictureInPicture/);
+  assert.match(preloadSource, /onNativePictureInPictureState/);
+  assert.match(hostSource, /attachFrameTarget\(id, targetWindow\)/);
+  assert.match(hostSource, /detachFrameTarget\(id\)/);
+  assert.match(pipPreloadSource, /aura:embedded-mpv-channel/);
+  assert.match(pipPreloadSource, /postMessage\(\{ type: 'ack', sequence: frame\.sequence \}\)/);
+  assert.match(pipHtmlSource, /id="pipCanvas"/);
+  assert.match(pipPlayerSource, /context\.putImageData/);
+  assert.match(pipPlayerSource, /toggle-pause/);
+  assert.match(pipPlayerSource, /id="pipSeek"|pipSeek/);
+  assert.match(playerSource, /setNativePictureInPicture/);
+  assert.doesNotMatch(playerSource, /playerStage\.classList\.toggle\('is-picture-in-picture'\)/);
 });
 
 test('native render host uses libmpv Render API and outputs frames', () => {
