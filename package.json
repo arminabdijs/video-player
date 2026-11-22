@@ -1,7 +1,7 @@
 {
   "name": "aura-material-video-player-pro",
   "productName": "Aura Player",
-  "version": "2.5.19",
+  "version": "2.5.20",
   "private": true,
   "description": "Aura Player Linux AppImage/DEB and Windows x64 NSIS setup installers with bundled native libmpv runtime",
   "main": "desktop/main.cjs",
@@ -149,7 +149,7 @@
       "perMachine": true,
       "allowElevation": true,
       "shortcutName": "Aura Player",
-      "uninstallDisplayName": "Aura Player 2.5.19",
+      "uninstallDisplayName": "Aura Player 2.5.20",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false
     },
