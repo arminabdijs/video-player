@@ -7538,3 +7538,20 @@ html.aura-extreme-playback {
   }
 }
 
+/* =========================================================
+   Playback compositor budget
+   Avoid sampling every moving video frame behind translucent
+   overlays while the media clock is running. Keep the same
+   panel colors and borders; only disable backdrop sampling.
+========================================================= */
+html.aura-video-active .subtitle-menu,
+html.aura-video-active .speed-menu,
+html.aura-video-active .player-context-menu,
+html.aura-video-active .player-keyboard-help,
+html.aura-video-active .player-drawer-overlay,
+html.aura-video-active .player-osd,
+html.aura-video-active .player-status,
+html.aura-video-active .seek-tooltip {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
