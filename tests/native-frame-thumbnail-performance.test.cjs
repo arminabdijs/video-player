@@ -241,34 +241,36 @@ test('native fallback is lazy and PiP does not duplicate full-rate frame copies 
 });
 
 
-test('browser playback detects sustained frame drops and a lagging per-file media clock', () => {
+test('browser performance monitoring is passive and never switches engines for transient frame drops', () => {
   const script = read('scripts/script.js');
-  assert.match(script, /current\.total - baseline\.total/);
-  assert.match(script, /current\.dropped - baseline\.dropped/);
-  assert.match(script, /observedFrames >= 30 &&\s*droppedDelta >= 6 && droppedRatio >= 0\.15/);
-  assert.match(script, /mediaClockProgress < 0\.72/);
-  assert.match(script, /tryDesktopMpvFallback\(\)/);
-  assert.match(script, /startVideoFrameWatchdog\(\)[\s\S]*?\}, 4000\)/);
+  const watchdog = script.match(/function startVideoFrameWatchdog\(\) \{([\s\S]*?)\n\}\n\nfunction dispatchNativeMediaEvent/)?.[1] || '';
+  assert.ok(watchdog, 'browser playback watchdog should exist');
+  assert.match(watchdog, /video\.readyState < HTMLMediaElement\.HAVE_FUTURE_DATA/);
+  assert.match(watchdog, /playbackDegradedSampleCount >= 3/);
+  assert.match(watchdog, /preserving the current engine/);
+  assert.doesNotMatch(watchdog, /tryDesktopMpvFallback/);
+  assert.doesNotMatch(watchdog, /requestVideoFrameCallback/);
+  assert.match(script, /video\.addEventListener\('waiting', stopVideoFrameWatchdog\)/);
+  assert.match(script, /video\.addEventListener\('stalled', stopVideoFrameWatchdog\)/);
 });
 
-test('desktop browser-first routing uses the actual file rather than extension-only codec guesses', () => {
+test('desktop browser-first routing keeps Chromium selected unless the actual media element reports a fatal error', () => {
   const script = read('scripts/script.js');
   assert.match(script, /Browser-first playback/);
-  assert.match(script, /mediaClockIsStalling/);
-  assert.match(script, /droppedFramesAreSustained/);
+  assert.match(script, /videoElement\.preload = 'metadata'/);
+  assert.match(script, /video\.addEventListener\('error'/);
+  assert.match(script, /MediaError\.MEDIA_ERR_SRC_NOT_SUPPORTED \|\| code === MediaError\.MEDIA_ERR_DECODE/);
   assert.doesNotMatch(script, /desktopBrowserDecodeProfiles/);
   assert.doesNotMatch(script, /getPowerEfficientBrowserDecodeProfile/);
-  assert.match(script, /video\.addEventListener\('error'/);
 });
 
-test('desktop browser-first routing uses the actual file rather than extension-only codec guesses', () => {
+test('native fallback attempts are deduplicated per playback generation, not forever per File object', () => {
   const script = read('scripts/script.js');
-  assert.match(script, /Browser-first playback/);
-  assert.match(script, /mediaClockIsStalling/);
-  assert.match(script, /droppedFramesAreSustained/);
-  assert.doesNotMatch(script, /desktopBrowserDecodeProfiles/);
-  assert.doesNotMatch(script, /getPowerEfficientBrowserDecodeProfile/);
-  assert.match(script, /video\.addEventListener\('error'/);
+  assert.match(script, /let desktopFallbackAttempt = null/);
+  assert.match(script, /desktopFallbackAttempt\?\.generation === generation/);
+  assert.match(script, /desktopFallbackAttempt = \{ generation, promise: attempt \}/);
+  assert.match(script, /desktopFallbackAttempt = null;\s*stopVideoFrameWatchdog\(\)/);
+  assert.doesNotMatch(script, /desktopFallbackAttempts/);
 });
 
 test('native low-resource rendering policy is based on CPU, RAM and software/integrated graphics, not Intel brand alone', () => {
