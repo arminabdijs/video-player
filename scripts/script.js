@@ -4408,7 +4408,9 @@ async function tryDesktopMpvFallback() {
       const renderWidth = Math.max(480, Math.min(3840, Math.round(bounds.width * pixelRatio)));
       const renderHeight = Math.max(270, Math.min(2160, Math.round(bounds.height * pixelRatio)));
       await desktop.startEmbeddedMpv(filePath, startTime, { width: renderWidth, height: renderHeight });
-      lastNativeOutputSize = { width: renderWidth, height: renderHeight };
+      lastNativeOutputSize = desktopPiPActive
+        ? { width: 0, height: 0 }
+        : { width: renderWidth, height: renderHeight };
       stopVideoFrameWatchdog();
       setEmbeddedMpvActive(true);
       if (matroskaImageSubtitleDetected) {

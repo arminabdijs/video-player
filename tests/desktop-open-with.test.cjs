@@ -45,7 +45,7 @@ test('OS-opened media enters the regular playlist and embedded playback surface'
   assert.match(script, /card\._videoPath = item\.externalPath/);
   assert.match(script, /card\._videoPath \|\| window\.auraDesktop\.getPathForFile\(file\)/);
   assert.match(script, /item\.externalPath \|\| desktop\.getPathForFile\(item\.file\)/);
-  assert.match(script, /if \(item\.externalPath\) \{/);
+  assert.match(script, /const sourceUrl = item\.externalPath \? item\.browserUrl : URL\.createObjectURL\(item\.file\)/);
 });
 
 test('native presentation pauses on minimize unless PiP owns the live frame surface', () => {
