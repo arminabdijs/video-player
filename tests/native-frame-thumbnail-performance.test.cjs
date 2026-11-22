@@ -277,6 +277,16 @@ test('native fallback attempts are deduplicated per playback generation, not for
   assert.doesNotMatch(script, /desktopFallbackAttempts/);
 });
 
+test('video-active compositor profile disables animated-video backdrop sampling without changing panel styling', () => {
+  const script = read('scripts/script.js');
+  const css = read('css/style.css');
+  assert.match(script, /document\.documentElement\.classList\.add\('aura-video-active'\)/);
+  assert.match(script, /document\.documentElement\.classList\.remove\('aura-video-active'\)/);
+  assert.match(css, /html\.aura-video-active \.subtitle-menu/);
+  assert.match(css, /html\.aura-video-active \.player-context-menu/);
+  assert.match(css, /backdrop-filter: none !important/);
+});
+
 test('native low-resource rendering policy is based on CPU, RAM and software/integrated graphics, not Intel brand alone', () => {
   const native = read('native/mpv-frame-host/main.cpp');
   assert.match(native, /const unsigned int logicalCpuCount/);
