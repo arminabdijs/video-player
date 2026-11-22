@@ -221,9 +221,12 @@ test('Linux SDL OpenGL initialization retries XWayland when Wayland context crea
   assert.match(nativeSource, /AURA_FATAL %s/);
 });
 
-test('native decoded frames are drawn in Aura Player original player surface', () => {
+test('native decoded frames are GPU-rendered on Aura Player original player surface', () => {
   assert.match(htmlSource, /<canvas id="nativeVideoCanvas"/);
-  assert.match(playerSource, /nativeVideoContext\.putImageData/);
+  assert.match(playerSource, /getContext\('webgl2'/);
+  assert.match(playerSource, /gl\.texSubImage2D/);
+  assert.match(playerSource, /gl\.drawArrays\(gl\.TRIANGLE_STRIP, 0, 4\)/);
+  assert.match(playerSource, /getContext\('2d'/);
   assert.match(playerSource, /setEmbeddedMpvActive/);
   assert.match(playerSource, /commandEmbeddedMpv/);
   assert.doesNotMatch(playerSource, /setMpvExternalNotice/);
