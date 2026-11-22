@@ -252,8 +252,7 @@ let highSpeedStallTimer = null;
 let highSpeedStallNoticeShown = false;
 let playbackGeneration = 0;
 let videoFrameWatchdogTimer = null;
-let videoFrameCallbackId = null;
-let presentedVideoFrameCount = 0;
+let playbackDegradedSampleCount = 0;
 
 /* =========================================================
    SAFE HELPERS
@@ -2123,8 +2122,9 @@ function startBrowserDesktopPlayback(item, desiredRate) {
   }
 
   activeObjectURL = sourceUrl;
-  const fileSize = Math.max(0, Number(item.size ?? item.file?.size) || 0);
-  videoElement.preload = fileSize <= AUTO_PRELOAD_MAX_BYTES ? 'auto' : 'metadata';
+  // Let Chromium read ahead only as playback needs it. "auto" can create
+  // unnecessary I/O and memory pressure for large local media files.
+  videoElement.preload = 'metadata';
   videoElement.defaultPlaybackRate = desiredRate;
   videoElement.playbackRate = desiredRate;
   videoElement.src = sourceUrl;
@@ -2163,6 +2163,7 @@ function playIndex(index, folderVideosList = null) {
   }
 
   playbackGeneration += 1;
+  desktopFallbackAttempt = null;
   stopVideoFrameWatchdog();
   setEmbeddedMpvActive(false);
 
@@ -2217,9 +2218,9 @@ function playIndex(index, folderVideosList = null) {
 
   const desktop = window.auraDesktop;
   if (desktop?.isDesktop && typeof desktop.startEmbeddedMpv === 'function') {
-    // Prefer Chromium only when MediaCapabilities reports smooth, power-efficient
-    // hardware decoding for a common codec. Unsupported or non-efficient files
-    // go directly to libmpv; browser decode errors retain the native fallback.
+    // Keep Chromium selected for the whole playback session unless the actual
+    // media element reports a fatal unsupported/decode error. Frame drops and
+    // temporary buffering are diagnostics, not reasons to restart the decoder.
     void startBrowserFirstDesktopPlayback(item, playbackGeneration);
   } else {
     activeObjectURL = URL.createObjectURL(item.file);
@@ -4059,6 +4060,8 @@ video.addEventListener('playing', () => {
 });
 
 video.addEventListener('seeking', stopVideoFrameWatchdog);
+video.addEventListener('waiting', stopVideoFrameWatchdog);
+video.addEventListener('stalled', stopVideoFrameWatchdog);
 video.addEventListener('seeked', () => {
   if (window.auraDesktop?.isDesktop && !nativeMpvActive && !video.paused) {
     startVideoFrameWatchdog();
@@ -4080,24 +4083,14 @@ video.addEventListener('ratechange', () => {
   }
 });
 
-const desktopFallbackAttempts = new WeakMap();
+let desktopFallbackAttempt = null;
 
 function stopVideoFrameWatchdog() {
   if (videoFrameWatchdogTimer !== null) {
     window.clearTimeout(videoFrameWatchdogTimer);
     videoFrameWatchdogTimer = null;
   }
-
-  if (videoFrameCallbackId !== null && typeof video.cancelVideoFrameCallback === 'function') {
-    try {
-      video.cancelVideoFrameCallback(videoFrameCallbackId);
-    } catch {
-      // The browser may already have completed the callback.
-    }
-  }
-
-  videoFrameCallbackId = null;
-  presentedVideoFrameCount = 0;
+  playbackDegradedSampleCount = 0;
 }
 
 function startVideoFrameWatchdog() {
@@ -4106,14 +4099,13 @@ function startVideoFrameWatchdog() {
 
   stopVideoFrameWatchdog();
 
-  if (!desktop?.isDesktop || nativeMpvActive || typeof video.requestVideoFrameCallback !== 'function') {
+  if (!desktop?.isDesktop || nativeMpvActive ||
+      typeof video.getVideoPlaybackQuality !== 'function') {
     return;
   }
 
   const readFrameCounters = () => {
-    const quality = typeof video.getVideoPlaybackQuality === 'function'
-      ? video.getVideoPlaybackQuality()
-      : null;
+    const quality = video.getVideoPlaybackQuality();
     return {
       total: Math.max(
         Number(quality?.totalVideoFrames) || 0,
@@ -4123,71 +4115,67 @@ function startVideoFrameWatchdog() {
     };
   };
 
-  const sampleStartedAt = performance.now();
-  const baselineMediaTime = Number(video.currentTime) || 0;
-  const baseline = readFrameCounters();
-  const baselinePresented = presentedVideoFrameCount;
-
-  const observeFrame = () => {
-    if (generation !== playbackGeneration || nativeMpvActive) return;
-    presentedVideoFrameCount += 1;
-    videoFrameCallbackId = video.requestVideoFrameCallback(observeFrame);
-  };
-
-  videoFrameCallbackId = video.requestVideoFrameCallback(observeFrame);
-
-  videoFrameWatchdogTimer = window.setTimeout(async () => {
-    videoFrameWatchdogTimer = null;
-
+  const sample = () => {
     if (generation !== playbackGeneration || nativeMpvActive || video.paused || !activeObjectURL) {
       return;
     }
 
-    const current = readFrameCounters();
-    const decodedDelta = Math.max(0, current.total - baseline.total);
-    const droppedDelta = Math.max(0, current.dropped - baseline.dropped);
-    const presentedDelta = Math.max(0, presentedVideoFrameCount - baselinePresented);
-    const observedFrames = Math.max(decodedDelta, presentedDelta);
-    const droppedRatio = decodedDelta > 0 ? droppedDelta / decodedDelta : 0;
-    const elapsedSeconds = Math.max(0.1, (performance.now() - sampleStartedAt) / 1000);
-    const expectedMediaAdvance = elapsedSeconds * Math.max(0.1, currentPlaybackRate);
-    const actualMediaAdvance = Math.max(0, (Number(video.currentTime) || 0) - baselineMediaTime);
-    const mediaClockProgress = expectedMediaAdvance > 0
-      ? actualMediaAdvance / expectedMediaAdvance
-      : 1;
+    const baseline = readFrameCounters();
+    const baselineMediaTime = Number(video.currentTime) || 0;
+    const sampleStartedAt = performance.now();
 
-    const noVideoOutput = video.videoWidth < 1 ||
-      (decodedDelta < 8 && presentedDelta < 8);
-    const droppedFramesAreSustained = observedFrames >= 30 &&
-      droppedDelta >= 6 && droppedRatio >= 0.15;
-    const mediaClockIsStalling = elapsedSeconds >= 2.4 &&
-      expectedMediaAdvance >= 0.8 &&
-      mediaClockProgress < 0.72 &&
-      video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+    videoFrameWatchdogTimer = window.setTimeout(() => {
+      videoFrameWatchdogTimer = null;
 
-    if (noVideoOutput || droppedFramesAreSustained || mediaClockIsStalling) {
-      const reason = noVideoOutput
-        ? 'این فایل در مرورگر تصویر قابل‌پخش تولید نکرد'
-        : mediaClockIsStalling
-          ? 'سرعت واقعی پخش مرورگر از زمان ویدیو عقب افتاده'
-          : 'پخش مرورگر افت فریم پایدار دارد';
-      showPlayerStatus(`${reason}؛ موتور داخلی در حال امتحان‌شدن است…`, { timeout: 0 });
-      const result = await tryDesktopMpvFallback();
-      if (!result.opened && result.handled) {
-        playerStage.classList.add('native-mpv-fallback-failed');
-        videoElement.pause();
+      if (generation !== playbackGeneration || nativeMpvActive || video.paused || !activeObjectURL) {
+        return;
       }
-      return;
-    }
 
-    if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
-      videoFrameWatchdogTimer = window.setTimeout(() => {
-        if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
-          startVideoFrameWatchdog();
-        }
-      }, 4000);
-    }
-  }, 2600);
+      const current = readFrameCounters();
+      const totalDelta = Math.max(0, current.total - baseline.total);
+      const droppedDelta = Math.max(0, current.dropped - baseline.dropped);
+      const droppedRatio = totalDelta > 0 ? droppedDelta / totalDelta : 0;
+      const elapsedSeconds = Math.max(0.1, (performance.now() - sampleStartedAt) / 1000);
+      const expectedMediaAdvance = elapsedSeconds * Math.max(0.1, currentPlaybackRate);
+      const actualMediaAdvance = Math.max(0, (Number(video.currentTime) || 0) - baselineMediaTime);
+      const mediaClockProgress = expectedMediaAdvance > 0
+        ? actualMediaAdvance / expectedMediaAdvance
+        : 1;
+      const bufferingOrSeeking = video.seeking ||
+        video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA;
+
+      // Ignore short stalls and buffering. Only flag severe degradation after
+      // three consecutive long samples. Crucially, this monitor never changes
+      // playback engines: a decoder restart would add a seek, startup cost and
+      // another memory spike while the user is already seeing poor playback.
+      const severeFrameDrops = !bufferingOrSeeking &&
+        totalDelta >= 120 && droppedDelta >= 24 && droppedRatio >= 0.20;
+      const mediaClockIsPersistentlySlow = !bufferingOrSeeking &&
+        elapsedSeconds >= 5 &&
+        expectedMediaAdvance >= 4.5 &&
+        mediaClockProgress < 0.80;
+      const degraded = severeFrameDrops || mediaClockIsPersistentlySlow;
+
+      playbackDegradedSampleCount = degraded
+        ? playbackDegradedSampleCount + 1
+        : 0;
+
+      if (playbackDegradedSampleCount >= 3) {
+        console.warn('[Aura Player] Chromium playback remains degraded; keeping the current engine to avoid disruptive mid-playback switching.', {
+          totalFrames: totalDelta,
+          droppedFrames: droppedDelta,
+          droppedRatio: Number(droppedRatio.toFixed(3)),
+          mediaClockProgress: Number(mediaClockProgress.toFixed(3)),
+          playbackRate: currentPlaybackRate,
+        });
+        playbackDegradedSampleCount = 0;
+      }
+
+      sample();
+    }, 6000);
+  };
+
+  sample();
 }
 
 function dispatchNativeMediaEvent(type) {
@@ -4386,6 +4374,7 @@ nativeVideoCanvas?.addEventListener('dblclick', (event) => {
 });
 
 async function tryDesktopMpvFallback() {
+  const generation = playbackGeneration;
   const desktop = window.auraDesktop;
   const item = flatPlaylist[currentPlaylistIndex];
   if (!desktop?.isDesktop || !item?.file || typeof desktop.getPathForFile !== 'function' ||
@@ -4394,10 +4383,13 @@ async function tryDesktopMpvFallback() {
   }
   if (nativeMpvActive) return { handled: true, opened: true };
 
-  const existingAttempt = desktopFallbackAttempts.get(item.file);
-  if (existingAttempt) return existingAttempt;
+  if (desktopFallbackAttempt?.generation === generation) {
+    return desktopFallbackAttempt.promise;
+  }
 
   const attempt = (async () => {
+    if (generation !== playbackGeneration) return { handled: true, opened: false };
+
     showPlayerStatus('در حال آماده‌سازی موتور داخلی پخش…', { timeout: 0 });
     try {
       const filePath = item.externalPath || desktop.getPathForFile(item.file);
@@ -4408,6 +4400,13 @@ async function tryDesktopMpvFallback() {
       const renderWidth = Math.max(480, Math.min(3840, Math.round(bounds.width * pixelRatio)));
       const renderHeight = Math.max(270, Math.min(2160, Math.round(bounds.height * pixelRatio)));
       await desktop.startEmbeddedMpv(filePath, startTime, { width: renderWidth, height: renderHeight });
+
+      // A queued fallback may finish after the user has selected another file.
+      // Do not let its late completion take over the newer playback session.
+      if (generation !== playbackGeneration) {
+        return { handled: true, opened: false };
+      }
+
       lastNativeOutputSize = desktopPiPActive
         ? { width: 0, height: 0 }
         : { width: renderWidth, height: renderHeight };
@@ -4427,11 +4426,12 @@ async function tryDesktopMpvFallback() {
     }
   })();
 
-  desktopFallbackAttempts.set(item.file, attempt);
+  desktopFallbackAttempt = { generation, promise: attempt };
   return attempt;
 }
 
 video.addEventListener('error', async () => {
+  if (nativeMpvActive || !activeObjectURL) return;
   const code = video.error?.code;
 
   if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || code === MediaError.MEDIA_ERR_DECODE) {
