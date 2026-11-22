@@ -251,7 +251,7 @@ test('browser performance monitoring is passive and never switches engines for t
   assert.ok(watchdog, 'browser playback watchdog should exist');
   assert.match(watchdog, /video\.readyState < HTMLMediaElement\.HAVE_FUTURE_DATA/);
   assert.match(watchdog, /playbackDegradedSampleCount >= 3/);
-  assert.match(watchdog, /preserving the current engine/);
+  assert.match(watchdog, /keeping the current engine/);
   assert.doesNotMatch(watchdog, /tryDesktopMpvFallback/);
   assert.doesNotMatch(watchdog, /requestVideoFrameCallback/);
   assert.match(script, /video\.addEventListener\('waiting', stopVideoFrameWatchdog\)/);
