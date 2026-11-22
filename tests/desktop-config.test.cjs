@@ -20,7 +20,7 @@ const pipHtmlSource = fs.readFileSync(path.join(root, 'desktop/pip.html'), 'utf8
 const pipPlayerSource = fs.readFileSync(path.join(root, 'desktop/pip.js'), 'utf8');
 
 test('desktop build is pinned to the embedded-renderer release', () => {
-  assert.equal(packageJson.version, '2.5.18');
+  assert.equal(packageJson.version, '2.5.19');
   assert.equal(packageJson.main, 'desktop/main.cjs');
   assert.ok(packageJson.scripts['native:build']);
   assert.match(packageJson.scripts['desktop:dev'], /native:build/);
