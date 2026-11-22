@@ -1164,13 +1164,15 @@ int main(int argc, char **argv) {
 
       const bool frameInFlight = g_frameInFlight.load(std::memory_order_acquire);
       const bool readbackPending = readback.available() && readback.hasPending();
-      // A completed frame may be waiting for its GL fence while the renderer
-      // is still free. Do not queue another PBO behind it: that would replay
-      // stale frames after ACK and make video visibly trail the audio clock.
-      // Keep g_frameDirty set until both the renderer and the single readback
-      // slot are free; then render the newest libmpv frame and drop obsolete
-      // intermediate updates instead of building a latency queue.
-      const bool frameSlotAvailable = !frameInFlight && !readbackPending;
+      // Keep only one pending PBO. While the preceding frame is being
+      // copied to the renderer and painted, read back the newest decoded frame
+      // into the free PBO slot. Publish it only after the renderer ACKs the
+      // preceding frame, overlapping GPU readback with IPC/Canvas work without
+      // building an unbounded stale-frame queue.
+      // Synchronous readback has no independent slot and must wait for ACK.
+      const bool frameSlotAvailable = readback.available()
+        ? !readbackPending
+        : !frameInFlight;
       const bool frameOutputEnabled = g_frameOutputEnabled.load(std::memory_order_acquire);
       const auto frameInterval = std::chrono::milliseconds(1000 / kTargetFps);
       const bool frameDue = now - lastFrame >= frameInterval;

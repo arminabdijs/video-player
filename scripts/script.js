@@ -2116,78 +2116,7 @@ function safePlay() {
   }
 }
 
-const desktopBrowserDecodeCache = new Map();
-
-const desktopBrowserDecodeProfiles = Object.freeze([
-  // ISO BMFF containers: AVC, HEVC, AV1, VP9 and MPEG-4 Part 2.
-  { contentType: 'video/mp4; codecs="avc1.42E01E"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
-  { contentType: 'video/mp4; codecs="avc1.640028"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
-  { contentType: 'video/mp4; codecs="hvc1.1.6.L93.B0"', extensions: ['mp4', 'm4v', 'mov'] },
-  { contentType: 'video/mp4; codecs="hev1.1.6.L93.B0"', extensions: ['mp4', 'm4v', 'mov'] },
-  { contentType: 'video/mp4; codecs="av01.0.05M.08"', extensions: ['mp4', 'm4v', 'mov'] },
-  { contentType: 'video/mp4; codecs="vp09.00.10.08"', extensions: ['mp4', 'm4v', 'mov'] },
-  { contentType: 'video/mp4; codecs="mp4v.20.9"', extensions: ['mp4', 'm4v', 'mov', '3gp', '3g2'] },
-
-  // WebM and Matroska containers.
-  { contentType: 'video/webm; codecs="vp8"', extensions: ['webm', 'mkv', 'mk3d', 'ogm'] },
-  { contentType: 'video/webm; codecs="vp09.00.10.08"', extensions: ['webm', 'mkv', 'mk3d', 'ogm'] },
-  { contentType: 'video/webm; codecs="av01.0.05M.08"', extensions: ['webm', 'mkv', 'mk3d', 'ogm'] },
-  { contentType: 'video/x-matroska; codecs="avc1.42E01E"', extensions: ['mkv', 'mk3d', 'ogm'] },
-  { contentType: 'video/x-matroska; codecs="hvc1.1.6.L93.B0"', extensions: ['mkv', 'mk3d'] },
-  { contentType: 'video/x-matroska; codecs="av01.0.05M.08"', extensions: ['mkv', 'mk3d'] },
-  { contentType: 'video/x-matroska; codecs="vp09.00.10.08"', extensions: ['mkv', 'mk3d'] },
-  { contentType: 'video/x-matroska; codecs="mp4v.20.9"', extensions: ['mkv', 'ogm'] },
-
-  // Legacy and transport-stream containers supported by some Chromium builds.
-  { contentType: 'video/ogg; codecs="theora"', extensions: ['ogv', 'ogg', 'ogm'] },
-  { contentType: 'video/mpeg; codecs="mp2v.60.40.13"', extensions: ['mpg', 'mpeg', 'mpe', 'm1v', 'm2v', 'vob'] },
-  { contentType: 'video/mp2t; codecs="avc1.42E01E"', extensions: ['ts', 'm2ts', 'm2t', 'mts'] },
-  { contentType: 'video/mp2t; codecs="hvc1.1.6.L93.B0"', extensions: ['ts', 'm2ts', 'm2t', 'mts'] },
-]);
-
-async function getPowerEfficientBrowserDecodeProfile(item) {
-  // Keep native frame routing while the custom always-on-top PiP is active.
-  if (desktopPiPActive || !navigator.mediaCapabilities?.decodingInfo ||
-      typeof videoElement.canPlayType !== 'function') return null;
-
-  const fileName = String(item?.name || item?.file?.name || item?.externalPath || '');
-  const extension = fileName.split(/[?#]/, 1)[0].split('.').pop().toLowerCase();
-  const profiles = desktopBrowserDecodeProfiles.filter((profile) =>
-    profile.extensions.includes(extension));
-
-  const candidates = profiles.map(async (profile) => {
-    let canPlay = '';
-    try {
-      canPlay = videoElement.canPlayType(profile.contentType);
-    } catch {
-      return null;
-    }
-    if (!canPlay || canPlay === 'no') return null;
-
-    let resultPromise = desktopBrowserDecodeCache.get(profile.contentType);
-    if (!resultPromise) {
-      resultPromise = navigator.mediaCapabilities.decodingInfo({
-        type: 'file',
-        video: {
-          contentType: profile.contentType,
-          width: 1920,
-          height: 1080,
-          bitrate: 12_000_000,
-          framerate: 60,
-        },
-      }).catch(() => null);
-      desktopBrowserDecodeCache.set(profile.contentType, resultPromise);
-    }
-
-    const result = await resultPromise;
-    return result?.supported && result.smooth && result.powerEfficient ? profile : null;
-  });
-
-  const results = await Promise.all(candidates);
-  return results.find(Boolean) || null;
-}
-
-function startBrowserDesktopPlayback(item, profile, desiredRate) {
+function startBrowserDesktopPlayback(item, desiredRate) {
   const sourceUrl = item.externalPath ? item.browserUrl : URL.createObjectURL(item.file);
   if (typeof sourceUrl !== 'string' || !sourceUrl) {
     throw new Error('مسیر مستقیم فایل برای decoder مرورگر در دسترس نیست.');
@@ -2201,91 +2130,30 @@ function startBrowserDesktopPlayback(item, profile, desiredRate) {
   videoElement.src = sourceUrl;
   videoElement.load();
   safePlay();
-  console.info(`[Aura Player] Browser hardware decode candidate selected: ${profile.contentType}; real frame telemetry remains authoritative.`);
-  showPlayerStatus('در حال انتخاب مسیر کم‌مصرف پخش…', { timeout: 1400 });
+  console.info('[Aura Player] Browser-first playback: testing the actual file with Chromium; native libmpv is reserved for unsupported or persistently degraded playback.');
+  showPlayerStatus('در حال شروع پخش مستقیم…', { timeout: 1600 });
 }
 
-async function startNativeDesktopPlayback(item, generation) {
+async function startBrowserFirstDesktopPlayback(item, generation) {
   const desktop = window.auraDesktop;
   if (!desktop?.isDesktop || typeof desktop.startEmbeddedMpv !== 'function') return false;
 
-  const desiredVolume = Number.isFinite(videoElement.volume) ? videoElement.volume : 1;
-  const desiredMuted = Boolean(videoElement.muted);
-  const desiredRate = currentPlaybackRate;
   try {
-    const browserProfile = await getPowerEfficientBrowserDecodeProfile(item);
+    // Release a previous native session before Chromium takes over.
+    await desktop.stopEmbeddedMpv?.();
     if (generation !== playbackGeneration) return false;
-    if (browserProfile) {
-      // Switching from a previous native file to the browser path must release
-      // the decoder, hidden GL context and duplicate frame transport.
-      await desktop.stopEmbeddedMpv?.();
-      if (generation !== playbackGeneration) return false;
-      startBrowserDesktopPlayback(item, browserProfile, desiredRate);
-      return true;
-    }
 
-    const filePath = item.externalPath || desktop.getPathForFile(item.file);
-    if (!filePath) throw new Error('مسیر واقعی فایل از سیستم‌عامل دریافت نشد.');
-    const bounds = playerStage.getBoundingClientRect();
-    const pixelRatio = Math.min(2, Math.max(1, Number(window.devicePixelRatio) || 1));
-    const requestedWidth = Math.max(480, Math.min(3840, Math.round(bounds.width * pixelRatio)));
-    const requestedHeight = Math.max(270, Math.min(2160, Math.round(bounds.height * pixelRatio)));
-    // Render at the physical pixel size of the player surface (up to 4K),
-    // while preserving the source display aspect ratio in the native FBO.
-    const renderWidth = requestedWidth;
-    const renderHeight = requestedHeight;
-
-    showPlayerStatus('در حال آماده‌سازی موتور داخلی پخش…', { timeout: 0 });
-    await desktop.startEmbeddedMpv(filePath, 0, { width: renderWidth, height: renderHeight });
-    // The native main process uses the floating window's dimensions while
-    // PiP is active. Mark the main-stage size as unknown so leaving PiP always
-    // sends a fresh full-size resize instead of assuming it is already applied.
-    lastNativeOutputSize = desktopPiPActive
-      ? { width: 0, height: 0 }
-      : { width: renderWidth, height: renderHeight };
-    if (generation !== playbackGeneration) {
-      // A newer playback request may already be loading into this same warm
-      // native process. Never tear the shared engine down from a stale start.
-      return false;
-    }
-
-    setEmbeddedMpvActive(true);
-    nativeMpvState.playbackRate = desiredRate;
-    nativeMpvState.volume = desiredVolume;
-    nativeMpvState.muted = desiredMuted;
-    void desktop.commandEmbeddedMpv({ type: 'speed', value: desiredRate });
-    void desktop.commandEmbeddedMpv({ type: 'volume', value: desiredVolume * 100 });
-    void desktop.commandEmbeddedMpv({ type: 'mute', value: desiredMuted });
-    showPlayerStatus('پخش داخلی با موتور libmpv فعال شد.', { timeout: 1400 });
+    startBrowserDesktopPlayback(item, currentPlaybackRate);
     return true;
   } catch (error) {
     if (generation !== playbackGeneration) return false;
-    const message = error?.message || 'راه‌اندازی موتور داخلی پخش ناموفق بود.';
-    console.warn('[Aura Player] Native-first playback failed; using browser fallback:', message);
-    setEmbeddedMpvActive(false);
-    if (desktopPiPActive) void desktop.setNativePictureInPicture?.(false).catch?.(() => {});
-    void desktop.stopEmbeddedMpv?.().catch?.(() => {});
-
-    if (item.externalPath) {
+    console.warn('[Aura Player] Chromium direct playback could not start; trying the native decoder:', error?.message || error);
+    const fallback = await tryDesktopMpvFallback();
+    if (!fallback.opened && fallback.handled) {
       playerStage.classList.add('native-mpv-fallback-failed');
-      showPlayerStatus(`باز کردن فایل با موتور داخلی ناموفق بود. ${message}`, {
-        error: true,
-        timeout: 0,
-      });
-      return false;
+      videoElement.pause();
     }
-
-    // Keep browser playback as a compatibility fallback for genuine File objects.
-    activeObjectURL = URL.createObjectURL(item.file);
-    video.preload = item.file.size <= AUTO_PRELOAD_MAX_BYTES ? 'auto' : 'metadata';
-    video.src = activeObjectURL;
-    video.defaultPlaybackRate = desiredRate;
-    video.playbackRate = desiredRate;
-    safePlay();
-    showPlayerStatus(`موتور داخلی نتوانست فایل را باز کند؛ پخش مرورگر امتحان می‌شود. ${message}`, {
-      timeout: 5200,
-    });
-    return false;
+    return fallback.opened;
   }
 }
 
@@ -2352,7 +2220,7 @@ function playIndex(index, folderVideosList = null) {
     // Prefer Chromium only when MediaCapabilities reports smooth, power-efficient
     // hardware decoding for a common codec. Unsupported or non-efficient files
     // go directly to libmpv; browser decode errors retain the native fallback.
-    void startNativeDesktopPlayback(item, playbackGeneration);
+    void startBrowserFirstDesktopPlayback(item, playbackGeneration);
   } else {
     activeObjectURL = URL.createObjectURL(item.file);
     // Small/medium local files can be read ahead aggressively. Keep metadata-only
@@ -4190,6 +4058,13 @@ video.addEventListener('playing', () => {
   startVideoFrameWatchdog();
 });
 
+video.addEventListener('seeking', stopVideoFrameWatchdog);
+video.addEventListener('seeked', () => {
+  if (window.auraDesktop?.isDesktop && !nativeMpvActive && !video.paused) {
+    startVideoFrameWatchdog();
+  }
+});
+
 video.addEventListener('ratechange', () => {
   if (video.playbackRate !== currentPlaybackRate) {
     /*
@@ -4248,6 +4123,8 @@ function startVideoFrameWatchdog() {
     };
   };
 
+  const sampleStartedAt = performance.now();
+  const baselineMediaTime = Number(video.currentTime) || 0;
   const baseline = readFrameCounters();
   const baselinePresented = presentedVideoFrameCount;
 
@@ -4272,18 +4149,29 @@ function startVideoFrameWatchdog() {
     const presentedDelta = Math.max(0, presentedVideoFrameCount - baselinePresented);
     const observedFrames = Math.max(decodedDelta, presentedDelta);
     const droppedRatio = decodedDelta > 0 ? droppedDelta / decodedDelta : 0;
+    const elapsedSeconds = Math.max(0.1, (performance.now() - sampleStartedAt) / 1000);
+    const expectedMediaAdvance = elapsedSeconds * Math.max(0.1, currentPlaybackRate);
+    const actualMediaAdvance = Math.max(0, (Number(video.currentTime) || 0) - baselineMediaTime);
+    const mediaClockProgress = expectedMediaAdvance > 0
+      ? actualMediaAdvance / expectedMediaAdvance
+      : 1;
+
     const noVideoOutput = video.videoWidth < 1 ||
       (decodedDelta < 8 && presentedDelta < 8);
-    const browserPlaybackIsStalling = observedFrames >= 30 &&
+    const droppedFramesAreSustained = observedFrames >= 30 &&
       droppedDelta >= 6 && droppedRatio >= 0.15;
+    const mediaClockIsStalling = elapsedSeconds >= 2.4 &&
+      expectedMediaAdvance >= 0.8 &&
+      mediaClockProgress < 0.72 &&
+      video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
 
-    if (noVideoOutput || browserPlaybackIsStalling) {
-      showPlayerStatus(
-        browserPlaybackIsStalling
-          ? 'پخش این کدک در مسیر مرورگر افت فریم دارد؛ موتور جایگزین در حال فعال‌شدن است…'
-          : 'این کدک در مسیر مرورگر تصویر قابل‌پخش تولید نکرد؛ موتور داخلی در حال فعال‌شدن است…',
-        { timeout: 0 },
-      );
+    if (noVideoOutput || droppedFramesAreSustained || mediaClockIsStalling) {
+      const reason = noVideoOutput
+        ? 'این فایل در مرورگر تصویر قابل‌پخش تولید نکرد'
+        : mediaClockIsStalling
+          ? 'سرعت واقعی پخش مرورگر از زمان ویدیو عقب افتاده'
+          : 'پخش مرورگر افت فریم پایدار دارد';
+      showPlayerStatus(`${reason}؛ موتور داخلی در حال امتحان‌شدن است…`, { timeout: 0 });
       const result = await tryDesktopMpvFallback();
       if (!result.opened && result.handled) {
         playerStage.classList.add('native-mpv-fallback-failed');
@@ -4292,8 +4180,6 @@ function startVideoFrameWatchdog() {
       return;
     }
 
-    // Re-sample deltas during long playback. Cumulative drop counters would
-    // otherwise keep a historical bad ratio forever or hide a later stall.
     if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {
       videoFrameWatchdogTimer = window.setTimeout(() => {
         if (generation === playbackGeneration && !nativeMpvActive && !video.paused) {

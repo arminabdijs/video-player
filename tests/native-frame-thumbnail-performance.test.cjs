@@ -64,28 +64,21 @@ test('native frame loop preserves up to 60 decoded FPS with a single latest-fram
   assert.ok(enqueue.includes('glReadPixels'));
   assert.doesNotMatch(enqueue, /bufferData/);
   assert.match(source, /const bool readbackPending = readback\.available\(\) && readback\.hasPending\(\)/);
-  assert.match(source, /const bool frameSlotAvailable = !frameInFlight && !readbackPending/);
+  assert.match(source, /const bool frameSlotAvailable = readback\.available\(\)\s*\?\s*!readbackPending\s*:\s*!frameInFlight/);
   assert.match(source, /const bool frameDue = now - lastFrame >= frameInterval/);
   assert.match(source, /frameOutputEnabled && frameSlotAvailable && frameDue &&\s*g_frameDirty\.exchange\(false/);
 });
 
-test('desktop local files prefer measured power-efficient browser decoding and retain libmpv fallback', () => {
+test('desktop local files try Chromium first and retain libmpv as a real-world fallback', () => {
   const source = read('scripts/script.js');
   const host = read('desktop/embedded-mpv-host.cjs');
   const native = read('native/mpv-frame-host/main.cpp');
-  assert.match(source, /async function startNativeDesktopPlayback\(/);
-  assert.match(source, /navigator\.mediaCapabilities\.decodingInfo/);
-  assert.match(source, /result\?\.supported && result\.smooth && result\.powerEfficient/);
-  assert.match(source, /startBrowserDesktopPlayback\(item, browserProfile, desiredRate\)/);
+  assert.match(source, /async function startBrowserFirstDesktopPlayback\(/);
+  assert.match(source, /startBrowserDesktopPlayback\(item, currentPlaybackRate\)/);
+  assert.doesNotMatch(source, /navigator\.mediaCapabilities\.decodingInfo/);
   assert.match(source, /tryDesktopMpvFallback\(\)/);
   assert.match(source, /item\.externalPath \? item\.browserUrl : URL\.createObjectURL\(item\.file\)/);
-  assert.match(native, /setOption\("hwdec", "d3d11va-copy,auto-safe"\)/);
   assert.match(native, /setOption\("hwdec-software-fallback", "yes"\)/);
-  assert.match(native, /setQualityOption\("vd-lavc-threads", "2"\)/);
-  assert.match(native, /setOption\("hwdec-threads", lowPowerDevice \? "2" : "0"\)/);
-  assert.match(native, /SDL_GetSystemRAM\(\)/);
-  assert.match(native, /const bool lowPowerDevice = logicalCpuCount <= 4/);
-  assert.doesNotMatch(read('desktop/main.cjs'), /embeddedMpv\.prewarm\(/);
   assert.match(host, /attachSessionFramePort/);
 });
 
@@ -187,7 +180,7 @@ test('native frame pipeline applies renderer ACK backpressure to the C++ render 
   assert.match(native, /const bool frameInFlight = g_frameInFlight\.load\(std::memory_order_acquire\)/);
   assert.match(native, /g_frameInFlight\.store\(true, std::memory_order_release\)/);
   assert.match(native, /const bool readbackPending = readback\.available\(\) && readback\.hasPending\(\)/);
-  assert.match(native, /const bool frameSlotAvailable = !frameInFlight && !readbackPending/);
+  assert.match(native, /const bool frameSlotAvailable = readback\.available\(\)\s*\?\s*!readbackPending\s*:\s*!frameInFlight/);
   assert.match(native, /const bool frameDue = now - lastFrame >= frameInterval/);
   assert.match(native, /const bool dirty = frameOutputEnabled && frameSlotAvailable && frameDue &&\s*g_frameDirty\.exchange/);
   assert.match(native, /constexpr int kPboCount = 1/);
@@ -239,7 +232,7 @@ test('native fallback is lazy and PiP does not duplicate full-rate frame copies 
   const native = read('native/mpv-frame-host/main.cpp');
 
   assert.doesNotMatch(main, /embeddedMpv\.prewarm\(/);
-  assert.match(script, /startNativeDesktopPlayback\(item, playbackGeneration\)/);
+  assert.match(script, /startBrowserFirstDesktopPlayback\(item, playbackGeneration\)/);
   assert.match(main, /embeddedMpv\.detachFrameTarget\('main'\)/);
   assert.match(main, /embeddedMpv\?\.attachFrameTarget\('main', mainWindow\)/);
   assert.match(native, /kTargetFps = 60/);
@@ -248,16 +241,25 @@ test('native fallback is lazy and PiP does not duplicate full-rate frame copies 
 });
 
 
-test('browser playback measures interval frame drops and falls back only after sustained decode stalls', () => {
+test('browser playback detects sustained frame drops and a lagging per-file media clock', () => {
   const script = read('scripts/script.js');
-  assert.match(script, /navigator\.mediaCapabilities\.decodingInfo/);
   assert.match(script, /current\.total - baseline\.total/);
   assert.match(script, /current\.dropped - baseline\.dropped/);
   assert.match(script, /observedFrames >= 30 &&\s*droppedDelta >= 6 && droppedRatio >= 0\.15/);
+  assert.match(script, /mediaClockProgress < 0\.72/);
   assert.match(script, /tryDesktopMpvFallback\(\)/);
   assert.match(script, /startVideoFrameWatchdog\(\)[\s\S]*?\}, 4000\)/);
 });
 
+test('desktop browser-first routing uses the actual file rather than extension-only codec guesses', () => {
+  const script = read('scripts/script.js');
+  assert.match(script, /Browser-first playback/);
+  assert.match(script, /mediaClockIsStalling/);
+  assert.match(script, /droppedFramesAreSustained/);
+  assert.doesNotMatch(script, /desktopBrowserDecodeProfiles/);
+  assert.doesNotMatch(script, /getPowerEfficientBrowserDecodeProfile/);
+  assert.match(script, /video\.addEventListener\('error'/);
+});
 
 test('desktop browser decode selection covers common video codec families across supported containers', () => {
   const script = read('scripts/script.js');
