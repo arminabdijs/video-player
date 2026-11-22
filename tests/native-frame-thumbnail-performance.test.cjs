@@ -125,10 +125,15 @@ test('native output dynamically resizes after fullscreen and viewport changes', 
   assert.match(script, /type: 'resize'/);
 });
 
-test('transferred frame ArrayBuffer is wrapped directly without a second ImageData byte copy', () => {
+test('native frames render through a persistent WebGL texture with a Canvas2D compatibility fallback', () => {
   const source = read('scripts/script.js');
-  assert.match(source, /new ImageData\(source, frame\.width, frame\.height, \{ colorSpace: 'srgb' \}\)/);
-  assert.doesNotMatch(source, /nativeFrameImageData\.data\.set/);
+  assert.match(source, /getContext\('webgl2'/);
+  assert.match(source, /gl\.texSubImage2D\(gl\.TEXTURE_2D, 0, 0, 0, width, height, gl\.RGBA, gl\.UNSIGNED_BYTE, data\)/);
+  assert.match(source, /gl\.drawArrays\(gl\.TRIANGLE_STRIP, 0, 4\)/);
+  assert.match(source, /textureWidth !== width \|\| textureHeight !== height/);
+  assert.match(source, /getContext\('2d', \{ alpha: false, desynchronized: true \}\)/);
+  assert.match(source, /context\.putImageData\(new ImageData\(data, width, height, \{ colorSpace: 'srgb' \}\), 0, 0\)/);
+  assert.doesNotMatch(source, /nativeVideoContext\.putImageData/);
 });
 
 
