@@ -3971,6 +3971,7 @@ closeDrawerBtn?.addEventListener('click', (event) => {
 
 video.addEventListener('play', () => {
   syncDrawerPlaybackState();
+  document.documentElement.classList.add('aura-video-active');
   playerStage.classList.add('playing');
   refreshPlayerContextMenu();
 
@@ -3991,6 +3992,7 @@ video.addEventListener('play', () => {
 
 video.addEventListener('pause', () => {
   syncDrawerPlaybackState();
+  document.documentElement.classList.remove('aura-video-active');
   playerStage.classList.remove('playing');
   refreshPlayerContextMenu();
 
@@ -4004,6 +4006,7 @@ video.addEventListener('pause', () => {
 
 video.addEventListener('ended', () => {
   syncDrawerPlaybackState();
+  document.documentElement.classList.remove('aura-video-active');
   playNextVideo();
 });
 
