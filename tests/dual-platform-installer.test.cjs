@@ -27,7 +27,7 @@ function findInstallerGuide() {
 const installerGuide = findInstallerGuide();
 
 test('one current-host command is available for Linux and Windows installers', () => {
-  assert.equal(pkg.version, '2.5.19');
+  assert.equal(pkg.version, '2.5.20');
   assert.equal(pkg.scripts['desktop:dist:current'], 'node scripts/build-current-installer.cjs');
   assert.match(currentBuilder, /process\.platform === 'linux'/);
   assert.match(currentBuilder, /desktop:dist:linux/);
