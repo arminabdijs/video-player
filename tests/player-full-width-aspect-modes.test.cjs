@@ -49,9 +49,11 @@ test('native poster frames also preserve the source aspect ratio', () => {
   assert.match(native, /aspect-correct native poster framebuffer/);
 });
 
-test('native frame presentation wraps the transferred buffer without an extra byte-array copy', () => {
+test('native frame presentation uploads the transferred buffer into a persistent WebGL texture', () => {
   const script = read('scripts/script.js');
-  assert.match(script, /new ImageData\(source, frame\.width, frame\.height, \{ colorSpace: 'srgb' \}\)/);
+  assert.match(script, /new Uint8ClampedArray\(frame\.data\)/);
+  assert.match(script, /gl\.texSubImage2D\(gl\.TEXTURE_2D, 0, 0, 0, width, height, gl\.RGBA, gl\.UNSIGNED_BYTE, data\)/);
+  assert.match(script, /textureWidth !== width \|\| textureHeight !== height/);
   assert.doesNotMatch(script, /nativeFrameImageData\.data\.set/);
 });
 
