@@ -117,7 +117,8 @@ test('native video output dimension probing is throttled while codecs publish st
 
 test('stylesheet cache key matches the current desktop UI release', () => {
   const html = read('index.html');
-  assert.match(html, /style\.css\?v=2\.5\.18/);
+  const version = JSON.parse(read('package.json')).version;
+  assert.match(html, new RegExp(`style\\.css\\?v=${version.replaceAll('.', '\\.')}`));
 });
 
 
@@ -129,6 +130,8 @@ test('native renderer prefers display aspect dimensions for anamorphic and rotat
 
 test('JavaScript and CSS cache keys track the current UI version', () => {
   const html = read('index.html');
-  assert.match(html, /style\.css\?v=2\.5\.18/);
-  assert.match(html, /script\.js\?v=2\.5\.18/);
+  const version = JSON.parse(read('package.json')).version;
+  const escapedVersion = version.replaceAll('.', '\\.');
+  assert.match(html, new RegExp(`style\\.css\\?v=${escapedVersion}`));
+  assert.match(html, new RegExp(`script\\.js\\?v=${escapedVersion}`));
 });
