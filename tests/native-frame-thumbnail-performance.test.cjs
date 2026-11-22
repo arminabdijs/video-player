@@ -243,7 +243,11 @@ test('native fallback is lazy and PiP does not duplicate full-rate frame copies 
 
 test('browser performance monitoring is passive and never switches engines for transient frame drops', () => {
   const script = read('scripts/script.js');
-  const watchdog = script.match(/function startVideoFrameWatchdog\(\) \{([\s\S]*?)\n\}\n\nfunction dispatchNativeMediaEvent/)?.[1] || '';
+  const watchdogStart = script.indexOf('function startVideoFrameWatchdog()');
+  const watchdogEnd = script.indexOf('function dispatchNativeMediaEvent', watchdogStart);
+  const watchdog = watchdogStart >= 0 && watchdogEnd > watchdogStart
+    ? script.slice(watchdogStart, watchdogEnd)
+    : '';
   assert.ok(watchdog, 'browser playback watchdog should exist');
   assert.match(watchdog, /video\.readyState < HTMLMediaElement\.HAVE_FUTURE_DATA/);
   assert.match(watchdog, /playbackDegradedSampleCount >= 3/);
