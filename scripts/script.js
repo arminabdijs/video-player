@@ -24,7 +24,148 @@ const embeddedSubtitleMessage = document.getElementById('embeddedSubtitleMessage
 const playerStage = document.getElementById('player');
 const videoElement = document.getElementById('video');
 const nativeVideoCanvas = document.getElementById('nativeVideoCanvas');
-const nativeVideoContext = nativeVideoCanvas?.getContext('2d', { alpha: false, desynchronized: true });
+
+function createNativeFrameRenderer(canvas) {
+  if (!canvas) return null;
+
+  const gl = canvas.getContext('webgl2', {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    premultipliedAlpha: false,
+    preserveDrawingBuffer: false,
+    powerPreference: 'high-performance',
+    desynchronized: true,
+  });
+
+  if (gl) {
+    const compileShader = (type, source) => {
+      const shader = gl.createShader(type);
+      if (!shader) throw new Error('Could not allocate a WebGL video shader.');
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const detail = gl.getShaderInfoLog(shader) || 'unknown shader compilation error';
+        gl.deleteShader(shader);
+        throw new Error(detail);
+      }
+      return shader;
+    };
+
+    try {
+      const vertexShader = compileShader(gl.VERTEX_SHADER, `#version 300 es
+        in vec2 aPosition;
+        out vec2 vUv;
+        void main() {
+          gl_Position = vec4(aPosition, 0.0, 1.0);
+          vUv = vec2(aPosition.x * 0.5 + 0.5, 0.5 - aPosition.y * 0.5);
+        }
+      `);
+      const fragmentShader = compileShader(gl.FRAGMENT_SHADER, `#version 300 es
+        precision mediump float;
+        uniform sampler2D uFrame;
+        in vec2 vUv;
+        out vec4 outColor;
+        void main() {
+          vec4 frameColor = texture(uFrame, vUv);
+          outColor = vec4(frameColor.rgb, 1.0);
+        }
+      `);
+      const program = gl.createProgram();
+      if (!program) throw new Error('Could not allocate the WebGL video program.');
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program) || 'unknown WebGL program link error');
+      }
+
+      const vao = gl.createVertexArray();
+      const vertexBuffer = gl.createBuffer();
+      const texture = gl.createTexture();
+      if (!vao || !vertexBuffer || !texture) {
+        throw new Error('Could not allocate WebGL video rendering resources.');
+      }
+
+      gl.bindVertexArray(vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1, 1, -1, -1, 1, 1, 1,
+      ]), gl.STATIC_DRAW);
+      const positionLocation = gl.getAttribLocation(program, 'aPosition');
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.useProgram(program);
+      gl.uniform1i(gl.getUniformLocation(program, 'uFrame'), 0);
+      gl.bindVertexArray(null);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+
+      let textureWidth = 0;
+      let textureHeight = 0;
+      return {
+        mode: 'webgl2',
+        clear() {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          gl.clearColor(0, 0, 0, 1);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+        },
+        draw(data, width, height) {
+          if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+          }
+          gl.viewport(0, 0, width, height);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          if (textureWidth !== width || textureHeight !== height) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            textureWidth = width;
+            textureHeight = height;
+          }
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+          gl.useProgram(program);
+          gl.bindVertexArray(vao);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          gl.bindVertexArray(null);
+        },
+      };
+    } catch (error) {
+      console.error('[Aura Player] WebGL native video renderer initialization failed:', error?.message || error);
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+  }
+
+  const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  if (!context) return null;
+  return {
+    mode: 'canvas2d',
+    clear() {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    },
+    draw(data, width, height) {
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      context.putImageData(new ImageData(data, width, height, { colorSpace: 'srgb' }), 0, 0);
+    },
+  };
+}
+
+const nativeFrameRenderer = createNativeFrameRenderer(nativeVideoCanvas);
 let nativeMpvActive = false;
 let desktopPiPActive = false;
 let nativePipTogglePending = false;
@@ -4191,7 +4332,7 @@ function setEmbeddedMpvActive(active) {
   playerStage.classList.remove('native-mpv-fallback-failed');
   if (!nativeMpvActive) {
     playerStage.classList.remove('is-picture-in-picture');
-    nativeVideoContext?.clearRect(0, 0, nativeVideoCanvas.width, nativeVideoCanvas.height);
+    nativeFrameRenderer?.clear();
     nativeMpvState.loaded = false;
     nativeMpvState.currentTime = 0;
     nativeMpvState.duration = 0;
@@ -4288,14 +4429,9 @@ document.addEventListener('fullscreenchange', requestNativeOutputResize);
 
 if (window.auraDesktop?.isDesktop) {
   window.auraDesktop.onEmbeddedMpvFrame((frame) => {
-    if (!nativeMpvActive || !nativeVideoContext || !frame?.data) return;
+    if (!nativeMpvActive || !nativeFrameRenderer || !frame?.data) return;
     if (!Number.isInteger(frame.width) || !Number.isInteger(frame.height) ||
         frame.width < 1 || frame.height < 1 || frame.width * frame.height > 16_777_216) return;
-
-    if (nativeVideoCanvas.width !== frame.width || nativeVideoCanvas.height !== frame.height) {
-      nativeVideoCanvas.width = frame.width;
-      nativeVideoCanvas.height = frame.height;
-    }
 
     const source = frame.data instanceof ArrayBuffer
       ? new Uint8ClampedArray(frame.data)
@@ -4303,10 +4439,10 @@ if (window.auraDesktop?.isDesktop) {
         ? new Uint8ClampedArray(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength)
         : null;
     if (!source || source.byteLength !== frame.width * frame.height * 4) return;
-    // The transferred ArrayBuffer already owns the frame bytes. Wrap it in
-    // ImageData instead of copying into a second reusable ImageData buffer.
-    const image = new ImageData(source, frame.width, frame.height, { colorSpace: 'srgb' });
-    nativeVideoContext.putImageData(image, 0, 0);
+    // Upload the transferred frame into a persistent GPU texture and draw one
+    // fullscreen quad. This avoids the software Canvas2D putImageData raster
+    // path on every native frame; Canvas2D remains a compatibility fallback.
+    nativeFrameRenderer.draw(source, frame.width, frame.height);
     nativeMpvState.totalVideoFrames += 1;
   });
   window.auraDesktop.onEmbeddedMpvState(handleEmbeddedMpvState);
