@@ -261,17 +261,14 @@ test('desktop browser-first routing uses the actual file rather than extension-o
   assert.match(script, /video\.addEventListener\('error'/);
 });
 
-test('desktop browser decode selection covers common video codec families across supported containers', () => {
+test('desktop browser-first routing uses the actual file rather than extension-only codec guesses', () => {
   const script = read('scripts/script.js');
-  for (const codec of [
-    'avc1.42E01E', 'avc1.640028', 'hvc1.1.6.L93.B0', 'hev1.1.6.L93.B0',
-    'av01.0.05M.08', 'vp09.00.10.08', 'vp8', 'mp4v.20.9', 'theora',
-    'mp2v.60.40.13',
-  ]) assert.ok(script.includes(codec), `missing browser decode profile: ${codec}`);
-  assert.match(script, /extensions: \['mp4', 'm4v', 'mov'/);
-  assert.match(script, /extensions: \['webm', 'mkv'/);
-  assert.match(script, /extensions: \['ts', 'm2ts', 'm2t', 'mts'\]/);
-  assert.match(script, /Promise\.all\(candidates\)/);
+  assert.match(script, /Browser-first playback/);
+  assert.match(script, /mediaClockIsStalling/);
+  assert.match(script, /droppedFramesAreSustained/);
+  assert.doesNotMatch(script, /desktopBrowserDecodeProfiles/);
+  assert.doesNotMatch(script, /getPowerEfficientBrowserDecodeProfile/);
+  assert.match(script, /video\.addEventListener\('error'/);
 });
 
 test('native low-resource rendering policy is based on CPU, RAM and software/integrated graphics, not Intel brand alone', () => {
