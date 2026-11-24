@@ -61,6 +61,7 @@ class EmbeddedMpvHost {
     this.lastEngineError = '';
     this.stopping = false;
     this.thumbnailPromises = new Map();
+    this.thumbnailChildren = new Set();
     this.thumbnailWriteCount = 0;
     this.frameOutputEnabled = true;
     this.sessionSequence = 0;
@@ -420,9 +421,7 @@ class EmbeddedMpvHost {
       }
 
       const output = await new Promise((resolve, reject) => {
-        const child = spawn(executable, [
-          '--thumbnail', '--file', filePath, '--start', String(time), '--width', '320', '--height', '180',
-        ], { cwd: runtimeDirectory, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+        let child = null;
         const chunks = [];
         let byteLength = 0;
         let stderr = '';
@@ -432,9 +431,14 @@ class EmbeddedMpvHost {
           if (settled) return;
           settled = true;
           if (timeout) clearTimeout(timeout);
+          if (child) this.thumbnailChildren.delete(child);
           if (error) reject(error);
           else resolve(value);
         };
+        child = spawn(executable, [
+          '--thumbnail', '--file', filePath, '--start', String(time), '--width', '320', '--height', '180',
+        ], { cwd: runtimeDirectory, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+        this.thumbnailChildren.add(child);
         timeout = setTimeout(() => {
           child.kill();
           finish(new Error('ساخت تصویر بندانگشتی با موتور داخلی بیش از ۱۲ ثانیه طول کشید.'));
@@ -776,7 +780,22 @@ class EmbeddedMpvHost {
     return { sent: true };
   }
 
+  cancelThumbnails() {
+    let cancelled = 0;
+    for (const child of this.thumbnailChildren) {
+      if (!child || child.killed || child.exitCode !== null || child.signalCode !== null) continue;
+      try {
+        if (child.kill()) cancelled += 1;
+      } catch {
+        // The thumbnail process may have exited between the status check and kill.
+      }
+    }
+    return { cancelled };
+  }
+
   async stop() {
+    // Poster decoding is background work. It must never compete with active video playback.
+    this.cancelThumbnails();
     if (this.stopPromise) return this.stopPromise;
 
     const session = this.activeSession;

@@ -301,3 +301,18 @@ test('native low-resource rendering policy is based on CPU, RAM and software/int
   assert.match(native, /g_deviceMaxOutputWidth = 1920/);
   assert.match(native, /g_deviceMaxOutputHeight = 1080/);
 });
+
+
+test('starting or stopping playback cancels in-flight native thumbnail decoder processes', () => {
+  const host = read('desktop/embedded-mpv-host.cjs');
+  assert.match(host, /this\\.thumbnailChildren = new Set\\(\\)/);
+  assert.match(host, /this\\.thumbnailChildren\\.add\\(child\\)/);
+  assert.match(host, /this\\.thumbnailChildren\\.delete\\(child\\)/);
+  assert.match(host, /cancelThumbnails\\(\\)/);
+  const stopStart = host.indexOf('async stop()');
+  const stopEnd = host.indexOf('closePort(', stopStart);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart, 'host stop method should exist');
+  const stop = host.slice(stopStart, stopEnd);
+  assert.ok(stop.indexOf('this.cancelThumbnails()') < stop.indexOf('if (this.stopPromise)'),
+    'thumbnail children must be cancelled before stop can return early');
+});

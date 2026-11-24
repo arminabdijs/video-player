@@ -20,7 +20,7 @@ const pipHtmlSource = fs.readFileSync(path.join(root, 'desktop/pip.html'), 'utf8
 const pipPlayerSource = fs.readFileSync(path.join(root, 'desktop/pip.js'), 'utf8');
 
 test('desktop build is pinned to the embedded-renderer release', () => {
-  assert.equal(packageJson.version, '2.5.20');
+  assert.equal(packageJson.version, '2.5.21');
   assert.equal(packageJson.main, 'desktop/main.cjs');
   assert.ok(packageJson.scripts['native:build']);
   assert.match(packageJson.scripts['desktop:dev'], /native:build/);
@@ -274,4 +274,13 @@ test('native frame transport reports acknowledged FPS and renderer ACK latency',
   assert.match(hostSource, /Frame transport: .*acknowledged FPS; ACK avg/);
   assert.match(hostSource, /this\.awaitingSequence = sequence/);
   assert.match(hostSource, /Number\(message\.sequence\) !== this\.awaitingSequence/);
+});
+
+
+test('Chromium hardware video-decode status is diagnosed without disabling GPU acceleration', () => {
+  assert.ok(mainSource.includes("app.on('gpu-info-update', reportGpuFeatureStatus)"));
+  assert.ok(mainSource.includes('app.getGPUFeatureStatus()'));
+  assert.ok(mainSource.includes('features.video_decode'));
+  assert.ok(mainSource.includes('app.isHardwareAccelerationEnabled()'));
+  assert.ok(!mainSource.includes('app.disableHardwareAcceleration('));
 });

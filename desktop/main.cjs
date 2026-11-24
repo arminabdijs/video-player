@@ -23,6 +23,31 @@ let embeddedMpv = null;
 let isQuitting = false;
 let rendererReady = false;
 const pendingMediaFiles = [];
+let lastGpuFeatureSnapshot = '';
+
+function reportGpuFeatureStatus() {
+  try {
+    const features = app.getGPUFeatureStatus() || {};
+    const snapshot = {
+      hardwareAcceleration: app.isHardwareAccelerationEnabled(),
+      gpuCompositing: features.gpu_compositing || 'unknown',
+      rasterization: features.rasterization || 'unknown',
+      videoDecode: features.video_decode || 'unknown',
+      vpxDecode: features.vpx_decode || 'unknown',
+      webgl: features.webgl || 'unknown',
+      webgl2: features.webgl2 || 'unknown',
+    };
+    const serialized = JSON.stringify(snapshot);
+    if (serialized === lastGpuFeatureSnapshot) return;
+    lastGpuFeatureSnapshot = serialized;
+    console.info('[Aura Player] Chromium GPU feature status:', serialized);
+  } catch (error) {
+    console.warn('[Aura Player] Chromium GPU feature status is not available yet:', error?.message || error);
+  }
+}
+
+// Electron exposes these feature flags only after Chromium emits gpu-info-update.
+app.on('gpu-info-update', reportGpuFeatureStatus);
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('info.arminabdi.aura-player');
