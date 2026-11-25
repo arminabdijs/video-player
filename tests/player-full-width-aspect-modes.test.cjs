@@ -79,7 +79,9 @@ test('Desktop HTML Picture-in-Picture switches to the native resizable MPV windo
   assert.match(toggle, /if \(desktop\?\.isDesktop\)/);
   assert.match(toggle, /await tryDesktopMpvFallback\(\)/);
   assert.match(toggle, /await desktop\.setNativePictureInPicture\(true\)/);
-  assert.doesNotMatch(toggle, /await openDocumentPictureInPicture\(\)/);
+  const desktopBranch = toggle.slice(toggle.indexOf('if (desktop?.isDesktop)'), toggle.indexOf('const documentPipApi'));
+  assert.doesNotMatch(desktopBranch, /documentPipApi|openDocumentPictureInPicture/);
+  assert.match(toggle, /await openDocumentPictureInPicture\(\)/);
   assert.match(toggle, /video\.requestPictureInPicture\(\)/);
   assert.match(toggle, /document\.exitPictureInPicture\(\)/);
 });
