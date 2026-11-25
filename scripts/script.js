@@ -4023,6 +4023,45 @@ async function togglePiP() {
     return;
   }
 
+  // Electron's Document Picture-in-Picture implementation can reject
+  // requestWindow() with Chromium's internal "no window" error. Use Aura's
+  // existing native libmpv + dedicated BrowserWindow path in desktop builds.
+  // This switches engines once at the current timestamp; it does not create a
+  // second decoder or mirror frames from a second HTMLVideoElement.
+  const desktop = window.auraDesktop;
+  if (desktop?.isDesktop && !nativeMpvActive) {
+    const item = flatPlaylist[currentPlaylistIndex];
+    if (!item?.file || typeof desktop.startEmbeddedMpv !== 'function' ||
+        typeof desktop.getPathForFile !== 'function') {
+      showPlayerStatus('برای PiP دسکتاپ، مسیر فایل محلی در دسترس نیست.', { error: true });
+      return;
+    }
+    const generation = playbackGeneration;
+    const startTime = Number.isFinite(video.currentTime) ? Math.max(0, video.currentTime) : 0;
+    try {
+      const filePath = item.externalPath || desktop.getPathForFile(item.file);
+      if (!filePath) throw new Error('مسیر فایل برای موتور داخلی در دسترس نیست.');
+      const bounds = playerStage.getBoundingClientRect();
+      const pixelRatio = Math.min(2, Math.max(1, Number(window.devicePixelRatio) || 1));
+      const renderWidth = Math.max(480, Math.min(3840, Math.round(bounds.width * pixelRatio)));
+      const renderHeight = Math.max(270, Math.min(2160, Math.round(bounds.height * pixelRatio)));
+      showPlayerStatus('در حال آماده‌سازی پنجرهٔ شناور…', { timeout: 0 });
+      await desktop.startEmbeddedMpv(filePath, startTime, { width: renderWidth, height: renderHeight });
+      if (generation !== playbackGeneration) {
+        await desktop.stopEmbeddedMpv();
+        return;
+      }
+      stopVideoFrameWatchdog();
+      setEmbeddedMpvActive(true);
+      lastNativeOutputSize = { width: renderWidth, height: renderHeight };
+      releaseActiveVideoSource();
+      await togglePiP();
+    } catch (error) {
+      showPlayerStatus('بازکردن PiP دسکتاپ ناموفق بود: ' + (error?.message || 'خطای نامشخص'), { error: true, timeout: 0 });
+    }
+    return;
+  }
+
   try {
     if (window.documentPictureInPicture?.window) {
       window.documentPictureInPicture.window.close();
