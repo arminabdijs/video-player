@@ -4025,6 +4025,31 @@ async function togglePiP() {
     return;
   }
 
+  const desktop = window.auraDesktop;
+  if (desktop?.isDesktop) {
+    if (nativePipTogglePending) return;
+    nativePipTogglePending = true;
+    if (pipBtn) pipBtn.disabled = true;
+    try {
+      const fallback = await tryDesktopMpvFallback();
+      if (!fallback.opened || !nativeMpvActive) {
+        throw new Error('انتقال ویدئو به موتور داخلی برای ساخت پنجرهٔ شناور ناموفق بود.');
+      }
+      const result = await desktop.setNativePictureInPicture(true);
+      desktopPiPActive = Boolean(result?.active);
+      pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
+      if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
+      if (!desktopPiPActive) throw new Error('پنجرهٔ شناور باز نشد.');
+      showPlayerOSD('تصویر در تصویر', 'روشن');
+    } catch (error) {
+      showPlayerStatus(`باز کردن پنجرهٔ شناور ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
+    } finally {
+      nativePipTogglePending = false;
+      if (pipBtn) pipBtn.disabled = false;
+    }
+    return;
+  }
+
   const documentPipApi = window.documentPictureInPicture;
   if (typeof documentPipApi?.requestWindow === 'function') {
     try {
@@ -4731,7 +4756,8 @@ async function tryDesktopMpvFallback() {
   const generation = playbackGeneration;
   const desktop = window.auraDesktop;
   const item = flatPlaylist[currentPlaylistIndex];
-  if (!desktop?.isDesktop || !item?.file || typeof desktop.getPathForFile !== 'function' ||
+  if (!desktop?.isDesktop || (!item?.file && !item?.externalPath) ||
+      (typeof desktop.getPathForFile !== 'function' && !item?.externalPath) ||
       typeof desktop.startEmbeddedMpv !== 'function') {
     return { handled: false, opened: false };
   }
