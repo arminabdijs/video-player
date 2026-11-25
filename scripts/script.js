@@ -3911,10 +3911,9 @@ async function openDocumentPictureInPicture() {
   const time = pipDocument.createElement('time');
   time.textContent = '00:00 / 00:00';
   controls.append(play, seek, time);
+  originalParent.insertBefore(placeholder, video);
   shell.append(video, topbar, controls);
   pipDocument.body.replaceChildren(shell);
-
-  originalParent.insertBefore(placeholder, video);
   const restore = () => {
     if (documentPipRestore !== restore) return;
     documentPipRestore = null;
