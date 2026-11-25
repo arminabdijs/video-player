@@ -66,7 +66,7 @@ test('additional MPV-oriented video extensions are recognized by library scannin
   }
 });
 
-test('Picture-in-Picture keeps native MPV independent and uses Document PiP for HTML video', () => {
+test('Desktop HTML Picture-in-Picture switches to the native resizable MPV window', () => {
   const script = read('scripts/script.js');
   const start = script.indexOf('async function togglePiP()');
   const endMatch = /\r?\n\/\* =+\r?\n   FOLDER INPUT/.exec(script.slice(start));
@@ -76,12 +76,25 @@ test('Picture-in-Picture keeps native MPV independent and uses Document PiP for 
   const toggle = script.slice(start, end);
   assert.match(toggle, /if \(nativeMpvActive\)/);
   assert.match(toggle, /desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
-  assert.match(toggle, /documentPipApi\?*\.requestWindow/);
-  assert.match(toggle, /await openDocumentPictureInPicture\(\)/);
-  assert.match(toggle, /if \(window\.auraDesktop\?\.isDesktop\)/);
+  assert.match(toggle, /if \(desktop\?\.isDesktop\)/);
+  assert.match(toggle, /await tryDesktopMpvFallback\(\)/);
+  assert.match(toggle, /await desktop\.setNativePictureInPicture\(true\)/);
+  assert.doesNotMatch(toggle, /await openDocumentPictureInPicture\(\)/);
   assert.match(toggle, /video\.requestPictureInPicture\(\)/);
-  assert.doesNotMatch(toggle, /desktop\.startEmbeddedMpv\(filePath, startTime/);
   assert.match(toggle, /document\.exitPictureInPicture\(\)/);
+});
+
+test('Desktop PiP can promote external-path and local HTML media to embedded MPV', () => {
+  const script = read('scripts/script.js');
+  const start = script.indexOf('async function tryDesktopMpvFallback()');
+  const end = script.indexOf("video.addEventListener('error'", start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const fallback = script.slice(start, end);
+  assert.match(fallback, /\(!item\?\.file && !item\?\.externalPath\)/);
+  assert.match(fallback, /item\.externalPath \|\| desktop\.getPathForFile\(item\.file\)/);
+  assert.match(fallback, /await desktop\.startEmbeddedMpv\(filePath, startTime/);
+  assert.match(fallback, /setEmbeddedMpvActive\(true\)/);
 });
 
 test('HTML Document PiP retains a fixed viewport when the same video element changes source', () => {
