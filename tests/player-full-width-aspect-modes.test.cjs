@@ -66,25 +66,27 @@ test('additional MPV-oriented video extensions are recognized by library scannin
   }
 });
 
-test('Desktop HTML Picture-in-Picture switches to the native resizable MPV window', () => {
+test('HTML Picture-in-Picture uses the lightweight browser video window without promoting playback to MPV', () => {
   const script = read('scripts/script.js');
   const start = script.indexOf('async function togglePiP()');
-  const endMatch = /\r?\n\/\* =+\r?\n   FOLDER INPUT/.exec(script.slice(start));
-  const end = endMatch ? start + endMatch.index : -1;
+  const end = script.indexOf('\n}\n\n/* =========================================================\n   FOLDER INPUT', start);
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   const toggle = script.slice(start, end);
   assert.match(toggle, /if \(nativeMpvActive\)/);
   assert.match(toggle, /desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
-  assert.match(toggle, /if \(desktop\?\.isDesktop\)/);
-  assert.match(toggle, /await tryDesktopMpvFallback\(\)/);
-  assert.match(toggle, /await desktop\.setNativePictureInPicture\(true\)/);
-  const desktopBranch = toggle.slice(toggle.indexOf('if (desktop?.isDesktop)'), toggle.indexOf('const documentPipApi'));
-  assert.doesNotMatch(desktopBranch, /documentPipApi|openDocumentPictureInPicture/);
-  assert.match(toggle, /await openDocumentPictureInPicture\(\)/);
-  assert.match(toggle, /Never fall back to browser-managed video PiP/);
-  assert.doesNotMatch(toggle, /requestPictureInPicture\(/);
-  assert.doesNotMatch(toggle, /exitPictureInPicture\(/);
+  assert.match(toggle, /videoElement\.requestPictureInPicture\(\)/);
+  assert.match(toggle, /document\.exitPictureInPicture\(\)/);
+  assert.doesNotMatch(toggle, /tryDesktopMpvFallback/);
+  assert.doesNotMatch(toggle, /openDocumentPictureInPicture/);
+  assert.match(toggle, /same HTMLVideoElement/);
+});
+
+test('HTML and native playback advance the playlist once when the current video ends', () => {
+  const script = read('scripts/script.js');
+  assert.match(script, /let lastAutoAdvanceGeneration = -1/);
+  assert.match(script, /video\.addEventListener\('ended'[\s\S]*?lastAutoAdvanceGeneration === playbackGeneration[\s\S]*?lastAutoAdvanceGeneration = playbackGeneration[\s\S]*?playNextVideo\(\)/);
+  assert.match(script, /message\.eventName === 'ended'[\s\S]*?dispatchNativeMediaEvent\('ended'\)/);
 });
 
 test('Desktop PiP keeps playlist changes in the native session and synchronizes the title', () => {
