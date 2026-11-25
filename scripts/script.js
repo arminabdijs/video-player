@@ -3804,8 +3804,198 @@ function syncFullscreenUI() {
    PICTURE IN PICTURE
 ========================================================= */
 
+let documentPipRestore = null;
+
+function getDocumentPipInitialSize() {
+  const fallback = {
+    width: Math.max(420, Math.min(720, Math.round(video.clientWidth || 560))),
+    height: Math.max(236, Math.min(405, Math.round(video.clientHeight || 315))),
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem('aura-player-document-pip-size-v1') || 'null');
+    if (!saved || !Number.isFinite(saved.width) || !Number.isFinite(saved.height)) return fallback;
+    return {
+      width: Math.round(Math.max(280, Math.min(1280, saved.width))),
+      height: Math.round(Math.max(158, Math.min(900, saved.height))),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function formatDocumentPipTime(value) {
+  const seconds = Math.max(0, Math.floor(Number(value) || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  const pad = (part) => String(part).padStart(2, '0');
+  return hours > 0 ? pad(hours) + ':' + pad(minutes) + ':' + pad(remainder) : pad(minutes) + ':' + pad(remainder);
+}
+
+async function openDocumentPictureInPicture() {
+  const api = window.documentPictureInPicture;
+  if (!api || typeof api.requestWindow !== 'function') return false;
+  if (api.window) {
+    api.window.focus();
+    return true;
+  }
+
+  const originalParent = video.parentNode;
+  if (!originalParent) throw new Error('عنصر ویدئو در صفحه پیدا نشد.');
+  const placeholder = document.createComment('Aura Player video position');
+  const originalStyle = video.getAttribute('style');
+  const originalControls = video.controls;
+  const size = getDocumentPipInitialSize();
+  const pipWindow = await api.requestWindow({
+    width: size.width,
+    height: size.height,
+    disallowReturnToOpener: false,
+  });
+  const pipDocument = pipWindow.document;
+  const style = pipDocument.createElement('style');
+  style.textContent = [
+    ':root{color-scheme:dark;background:transparent}',
+    '*{box-sizing:border-box}',
+    'html,body{width:100%;height:100%;min-width:280px;min-height:158px;margin:0;overflow:hidden;background:transparent}',
+    'body{font-family:"Segoe UI",Tahoma,sans-serif}',
+    '.aura-document-pip{position:relative;width:100%;height:100%;overflow:hidden;border-radius:15px;background:#050608;box-shadow:0 10px 34px rgba(0,0,0,.48),0 2px 8px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.14);isolation:isolate}',
+    '.aura-document-pip video{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;border:0!important;border-radius:15px!important;object-fit:cover!important;object-position:center center!important;background:#050608}',
+    '.aura-document-pip-top,.aura-document-pip-controls{position:absolute;z-index:4;left:0;right:0;display:flex;align-items:center;opacity:0;pointer-events:none;transition:opacity 140ms ease}',
+    '.aura-document-pip-top{top:0;height:42px;padding:6px 9px 6px 13px;justify-content:space-between;color:#fff;font:600 11px "Segoe UI",sans-serif;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}',
+    '.aura-document-pip-controls{bottom:0;min-height:58px;padding:8px 12px 10px;gap:9px;background:linear-gradient(0deg,rgba(0,0,0,.86),transparent)}',
+    '.aura-document-pip:hover .aura-document-pip-top,.aura-document-pip:hover .aura-document-pip-controls,.aura-document-pip:focus-within .aura-document-pip-top,.aura-document-pip:focus-within .aura-document-pip-controls{opacity:1;pointer-events:auto}',
+    '.aura-document-pip button{display:inline-grid;place-items:center;width:31px;height:31px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:50%;color:#fff;background:rgba(20,20,24,.64);cursor:pointer;flex:0 0 auto}',
+    '.aura-document-pip button:hover{background:rgba(255,255,255,.24)}',
+    '.aura-document-pip button svg{width:15px;height:15px;fill:currentColor}',
+    '.aura-document-pip .aura-pip-title{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}',
+    '.aura-document-pip .aura-pip-controls-main{display:flex;align-items:center;gap:8px;direction:ltr}',
+    '.aura-document-pip input[type=range]{min-width:35px;flex:1 1 auto;width:100%;accent-color:#c4b5fd}',
+    '.aura-document-pip time{min-width:86px;color:#fff;font:10px "Segoe UI",sans-serif;text-align:center;direction:ltr}',
+    '@media(prefers-reduced-motion:reduce){.aura-document-pip-top,.aura-document-pip-controls{transition:none}}'
+  ].join('\n');
+  pipDocument.head.append(style);
+
+  const shell = pipDocument.createElement('main');
+  shell.className = 'aura-document-pip';
+  shell.setAttribute('aria-label', 'Aura Player Picture in Picture');
+  const topbar = pipDocument.createElement('header');
+  topbar.className = 'aura-document-pip-top';
+  const title = pipDocument.createElement('span');
+  title.className = 'aura-pip-title';
+  title.textContent = 'Aura Player';
+  const close = pipDocument.createElement('button');
+  close.type = 'button';
+  close.title = 'بستن تصویر در تصویر';
+  close.setAttribute('aria-label', 'بستن تصویر در تصویر');
+  close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4-6.3-6.3-6.3 6.3-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg>';
+  topbar.append(title, close);
+
+  const controls = pipDocument.createElement('footer');
+  controls.className = 'aura-document-pip-controls';
+  const play = pipDocument.createElement('button');
+  play.type = 'button';
+  play.title = 'پخش یا توقف';
+  play.setAttribute('aria-label', 'پخش یا توقف');
+  const playIcon = pipDocument.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  playIcon.setAttribute('viewBox', '0 0 24 24');
+  const playPath = pipDocument.createElementNS('http://www.w3.org/2000/svg', 'path');
+  playIcon.append(playPath);
+  play.append(playIcon);
+  const seek = pipDocument.createElement('input');
+  seek.type = 'range';
+  seek.min = '0';
+  seek.max = '1000';
+  seek.step = '1';
+  seek.value = '0';
+  seek.setAttribute('aria-label', 'موقعیت پخش');
+  const time = pipDocument.createElement('time');
+  time.textContent = '00:00 / 00:00';
+  controls.append(play, seek, time);
+  shell.append(video, topbar, controls);
+  pipDocument.body.replaceChildren(shell);
+
+  originalParent.insertBefore(placeholder, video);
+  const restore = () => {
+    if (documentPipRestore !== restore) return;
+    documentPipRestore = null;
+    try {
+      if (placeholder.parentNode) placeholder.parentNode.insertBefore(video, placeholder);
+      placeholder.remove();
+      if (originalStyle === null) video.removeAttribute('style');
+      else video.setAttribute('style', originalStyle);
+      video.controls = originalControls;
+      playerStage?.classList.remove('document-pip-active');
+      pipBtn?.setAttribute('aria-pressed', 'false');
+      if (pipBtn) pipBtn.title = 'تصویر در تصویر (I)';
+      repositionOpenPlayerOverlays();
+    } catch (error) {
+      console.warn('[Aura Player] Could not restore the video after Document PiP:', error?.message || error);
+    }
+  };
+  documentPipRestore = restore;
+  playerStage?.classList.add('document-pip-active');
+  pipBtn?.setAttribute('aria-pressed', 'true');
+  if (pipBtn) pipBtn.title = 'خروج از تصویر در تصویر';
+
+  const update = () => {
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const current = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    playPath.setAttribute('d', video.paused ? 'M8 5v14l11-7z' : 'M6 5h4v14H6zm8 0h4v14h-4z');
+    seek.value = String(duration > 0 ? Math.round(Math.min(1, current / duration) * 1000) : 0);
+    time.textContent = formatDocumentPipTime(current) + ' / ' + formatDocumentPipTime(duration);
+  };
+  const togglePlayback = () => {
+    if (video.paused) void video.play().catch((error) => console.warn('[Aura Player] PiP playback failed:', error));
+    else video.pause();
+  };
+  const onSeek = () => {
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      video.currentTime = (Number(seek.value) / 1000) * video.duration;
+    }
+  };
+  const onResize = () => {
+    try {
+      localStorage.setItem('aura-player-document-pip-size-v1', JSON.stringify({
+        width: Math.round(pipWindow.outerWidth || pipWindow.innerWidth),
+        height: Math.round(pipWindow.outerHeight || pipWindow.innerHeight),
+      }));
+    } catch { /* persistence is best-effort */ }
+  };
+  const onPageHide = () => {
+    video.removeEventListener('timeupdate', update);
+    video.removeEventListener('durationchange', update);
+    video.removeEventListener('play', update);
+    video.removeEventListener('pause', update);
+    video.removeEventListener('loadedmetadata', update);
+    pipWindow.removeEventListener('resize', onResize);
+    restore();
+  };
+
+  play.addEventListener('click', togglePlayback);
+  close.addEventListener('click', () => pipWindow.close());
+  seek.addEventListener('input', onSeek);
+  video.addEventListener('click', togglePlayback);
+  video.addEventListener('timeupdate', update);
+  video.addEventListener('durationchange', update);
+  video.addEventListener('play', update);
+  video.addEventListener('pause', update);
+  video.addEventListener('loadedmetadata', update);
+  pipWindow.addEventListener('resize', onResize);
+  pipWindow.addEventListener('pagehide', onPageHide, { once: true });
+  pipWindow.addEventListener('keydown', (event) => {
+    if (event.code === 'Space' && event.target !== seek) {
+      event.preventDefault();
+      togglePlayback();
+    } else if (event.key === 'Escape') {
+      pipWindow.close();
+    }
+  });
+  update();
+  return true;
+}
+
 async function togglePiP() {
-  // Native libmpv frames need a real desktop window: Chromium's video PiP API
+  // Native libmpv frames need a real desktop window; Chromium's video PiP API
   // cannot capture the Canvas, and an in-page CSS overlay cannot float over
   // other Windows applications.
   if (nativeMpvActive) {
@@ -3827,7 +4017,7 @@ async function togglePiP() {
       }
       showPlayerOSD('تصویر در تصویر', desktopPiPActive ? 'روشن' : 'خاموش');
     } catch (error) {
-      showPlayerStatus(`باز کردن پنجرهٔ شناور ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
+      showPlayerStatus('باز کردن پنجرهٔ شناور ناموفق بود: ' + (error?.message || 'خطای نامشخص'), { error: true });
     } finally {
       nativePipTogglePending = false;
       if (pipBtn) pipBtn.disabled = false;
@@ -3835,27 +4025,21 @@ async function togglePiP() {
     return;
   }
 
-  if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
-    showPlayerStatus('تصویر در تصویر توسط این مرورگر پشتیبانی نمی‌شود.', {
-      error: true,
-    });
-
-    return;
-  }
-
   try {
-    if (document.pictureInPictureElement) {
-      await document.exitPictureInPicture();
-    } else {
-      await video.requestPictureInPicture();
+    if (window.documentPictureInPicture?.window) {
+      window.documentPictureInPicture.window.close();
+      return;
     }
-  } catch {
-    showPlayerStatus('ورود به حالت تصویر در تصویر ممکن نشد.', {
-      error: true,
-    });
+    if (await openDocumentPictureInPicture()) return;
+    if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
+      showPlayerStatus('تصویر در تصویر سفارشی در این نسخهٔ مرورگر پشتیبانی نمی‌شود.', { error: true });
+      return;
+    }
+    await video.requestPictureInPicture();
+  } catch (error) {
+    showPlayerStatus('ورود به تصویر در تصویر ممکن نشد: ' + (error?.message || 'خطای نامشخص'), { error: true });
   }
 }
-
 /* =========================================================
    FOLDER INPUT
 ========================================================= */
