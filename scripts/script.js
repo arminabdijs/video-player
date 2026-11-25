@@ -2279,6 +2279,17 @@ async function startBrowserFirstDesktopPlayback(item, generation) {
   const desktop = window.auraDesktop;
   if (!desktop?.isDesktop || typeof desktop.startEmbeddedMpv !== 'function') return false;
 
+  // A visible native PiP owns the decoder session and its frame stream.
+  // Keep every subsequent playlist item in that same MPV session.
+  if (desktopPiPActive) {
+    const fallback = await tryDesktopMpvFallback();
+    if (!fallback.opened && fallback.handled) {
+      playerStage.classList.add('native-mpv-fallback-failed');
+      showPlayerStatus('انتقال ویدئوی بعدی به پنجرهٔ شناور ناموفق بود.', { error: true, timeout: 0 });
+    }
+    return fallback.opened;
+  }
+
   try {
     // Release a previous native session before Chromium takes over.
     await desktop.stopEmbeddedMpv?.();
@@ -2358,6 +2369,9 @@ function playIndex(index, folderVideosList = null) {
   applyPlaybackPerformanceProfile(currentPlaybackRate);
 
   const desktop = window.auraDesktop;
+  if (desktop?.isDesktop && desktopPiPActive) {
+    void desktop.setNativePictureInPictureTitle?.(item.name || 'Aura Player');
+  }
   if (desktop?.isDesktop && typeof desktop.startEmbeddedMpv === 'function') {
     // Keep Chromium selected for the whole playback session unless the actual
     // media element reports a fatal unsupported/decode error. Frame drops and
