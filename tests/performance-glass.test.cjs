@@ -18,7 +18,7 @@ test('buffer range scanning is separated from the timeupdate hot path', () => {
   assert.match(timeUpdate, /updateProgressThrottled\(\)/);
   assert.match(timeUpdate, /if \(subtitleEnabled\) updateSubtitles\(\)/);
   assert.doesNotMatch(timeUpdate, /updateBufferedProgress/);
-  assert.ok(source.includes("video.addEventListener('progress', updateBufferedProgress)"));
+  assert.match(source, /video\.addEventListener\('progress',\s*\(\)\s*=>\s*\{\s*updateBufferedProgress\(\);/);
 });
 
 test('subtitle binary search is skipped while the active cue remains valid', () => {
