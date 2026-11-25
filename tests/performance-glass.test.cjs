@@ -10,10 +10,11 @@ const css = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
  test('buffer range scanning is separated from the timeupdate hot path', () => {
-  const timeUpdateHandlers = [...source.matchAll(/video\\.addEventListener\\('timeupdate',\\s*([A-Za-z_$][\\w$]*)\\s*\\)/g)].map((match) => match[1]);
-  assert.ok(timeUpdateHandlers.includes('updateProgressThrottled'), 'timeupdate must use the throttled progress handler');
-  assert.match(source, /function updateProgressThrottled\\(/);
-  assert.match(source, /if \\(subtitleEnabled\\) updateSubtitles\\(\\)/);
+  const timeUpdate = source.match(/video\\.addEventListener\\('timeupdate',\\s*\\(\\)\\s*=>\\s*\\{[\\s\\S]*?\\n\\}\);/);
+  assert.ok(timeUpdate, 'timeupdate must use the throttled progress callback');
+  assert.match(timeUpdate[0], /updateProgressThrottled\\(\\)/);
+  assert.match(timeUpdate[0], /if \\(subtitleEnabled\\) updateSubtitles\\(\\)/);
+  assert.doesNotMatch(timeUpdate[0], /updateBufferedProgress/);
   assert.match(source, /video\\.addEventListener\\('progress',[\\s\\S]*?updateBufferedProgress\\(\\)/);
 });
 
