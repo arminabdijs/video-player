@@ -9,13 +9,16 @@ const source = fs.readFileSync(path.join(root, 'scripts', 'script.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'css', 'style.css'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
- test('buffer range scanning is separated from the timeupdate hot path', () => {
-  const timeUpdate = source.match(/video\\.addEventListener\\('timeupdate',\\s*\\(\\)\\s*=>\\s*\\{[\\s\\S]*?\\n\\}\);/);
-  assert.ok(timeUpdate, 'timeupdate must use the throttled progress callback');
-  assert.match(timeUpdate[0], /updateProgressThrottled\\(\\)/);
-  assert.match(timeUpdate[0], /if \\(subtitleEnabled\\) updateSubtitles\\(\\)/);
-  assert.doesNotMatch(timeUpdate[0], /updateBufferedProgress/);
-  assert.match(source, /video\\.addEventListener\\('progress',[\\s\\S]*?updateBufferedProgress\\(\\)/);
+test('buffer range scanning is separated from the timeupdate hot path', () => {
+  const listenerStart = source.indexOf("video.addEventListener('timeupdate', () => {");
+  assert.notEqual(listenerStart, -1, 'timeupdate listener must exist');
+  const listenerEnd = source.indexOf("\n});", listenerStart);
+  assert.notEqual(listenerEnd, -1, 'timeupdate listener must close');
+  const timeUpdate = source.slice(listenerStart, listenerEnd);
+  assert.match(timeUpdate, /updateProgressThrottled\(\)/);
+  assert.match(timeUpdate, /if \(subtitleEnabled\) updateSubtitles\(\)/);
+  assert.doesNotMatch(timeUpdate, /updateBufferedProgress/);
+  assert.ok(source.includes("video.addEventListener('progress', updateBufferedProgress)"));
 });
 
 test('subtitle binary search is skipped while the active cue remains valid', () => {
