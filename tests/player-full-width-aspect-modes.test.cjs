@@ -82,8 +82,9 @@ test('Desktop HTML Picture-in-Picture switches to the native resizable MPV windo
   const desktopBranch = toggle.slice(toggle.indexOf('if (desktop?.isDesktop)'), toggle.indexOf('const documentPipApi'));
   assert.doesNotMatch(desktopBranch, /documentPipApi|openDocumentPictureInPicture/);
   assert.match(toggle, /await openDocumentPictureInPicture\(\)/);
-  assert.match(toggle, /video\.requestPictureInPicture\(\)/);
-  assert.match(toggle, /document\.exitPictureInPicture\(\)/);
+  assert.match(toggle, /Never fall back to browser-managed video PiP/);
+  assert.doesNotMatch(toggle, /requestPictureInPicture\(/);
+  assert.doesNotMatch(toggle, /exitPictureInPicture\(/);
 });
 
 test('Desktop PiP keeps playlist changes in the native session and synchronizes the title', () => {
