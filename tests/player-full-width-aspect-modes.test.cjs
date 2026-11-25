@@ -66,16 +66,16 @@ test('additional MPV-oriented video extensions are recognized by library scannin
   }
 });
 
-test('the Picture-in-Picture control uses the original Chromium-native video PiP path', () => {
+test('Picture-in-Picture keeps native MPV in its independent desktop window and uses Chromium PiP for HTML video', () => {
   const script = read('scripts/script.js');
-  assert.match(script, /async function togglePiP\(\)[\s\S]*?video\.requestPictureInPicture\(\)/);
-  assert.doesNotMatch(script, /documentPictureInPicture\.requestWindow/);
-  assert.doesNotMatch(script, /desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
-  assert.doesNotMatch(script, /desktop\.startEmbeddedMpv\(filePath, startTime/);
-  assert.match(script, /document\.pictureInPictureElement === video/);
-  assert.match(script, /document\.exitPictureInPicture\(\)/);
+  const toggle = script.slice(script.indexOf('async function togglePiP()'), script.indexOf('\\n/* =========================================================\\n   FOLDER INPUT'));
+  assert.match(toggle, /if \\(nativeMpvActive\\)/);
+  assert.match(toggle, /desktop\\.setNativePictureInPicture\\(!desktopPiPActive\\)/);
+  assert.match(toggle, /video\\.requestPictureInPicture\\(\\)/);
+  assert.doesNotMatch(toggle, /documentPictureInPicture\\.requestWindow/);
+  assert.doesNotMatch(toggle, /desktop\\.startEmbeddedMpv\\(filePath, startTime/);
+  assert.match(toggle, /document\\.exitPictureInPicture\\(\\)/);
 });
-
 
 test('native video output dimension probing is throttled while codecs publish stream metadata', () => {
   const native = read('native/mpv-frame-host/main.cpp');
