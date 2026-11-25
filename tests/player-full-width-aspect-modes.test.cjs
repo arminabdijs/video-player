@@ -101,6 +101,7 @@ test('HTML Document PiP retains a fixed viewport when the same video element cha
   assert.match(pip, /pipWindow\.addEventListener\('pagehide', onPageHide/);
   assert.doesNotMatch(pip, /pipWindow\.resizeTo|pipWindow\.resizeBy/);
   assert.match(script, /videoElement\.src = sourceUrl/);
+  assert.match(script, /typeof window\.documentPictureInPicture\?\.requestWindow !== 'function'/);
 });
 test('native PiP can resize freely within the active display work area and persists user bounds', () => {
   const main = read('desktop/main.cjs');
