@@ -3993,83 +3993,20 @@ async function openDocumentPictureInPicture() {
 }
 
 async function togglePiP() {
-  // Native libmpv frames need a real desktop window; Chromium's video PiP API
-  // cannot capture the Canvas, and an in-page CSS overlay cannot float over
-  // other Windows applications.
-  if (nativeMpvActive) {
-    const desktop = window.auraDesktop;
-    if (typeof desktop?.setNativePictureInPicture !== 'function') {
-      showPlayerStatus('پنجرهٔ شناور مستقل در این نسخهٔ دسکتاپ در دسترس نیست.', { error: true });
-      return;
-    }
-    if (nativePipTogglePending) return;
-    nativePipTogglePending = true;
-    if (pipBtn) pipBtn.disabled = true;
-    try {
-      const result = await desktop.setNativePictureInPicture(!desktopPiPActive);
-      if (result && typeof result.active === 'boolean') {
-        desktopPiPActive = result.active;
-        pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
-        if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
-        if (!desktopPiPActive) requestNativeOutputResize();
-      }
-      showPlayerOSD('تصویر در تصویر', desktopPiPActive ? 'روشن' : 'خاموش');
-    } catch (error) {
-      showPlayerStatus('باز کردن پنجرهٔ شناور ناموفق بود: ' + (error?.message || 'خطای نامشخص'), { error: true });
-    } finally {
-      nativePipTogglePending = false;
-      if (pipBtn) pipBtn.disabled = false;
-    }
-    return;
-  }
-
-  // Electron's Document Picture-in-Picture implementation can reject
-  // requestWindow() with Chromium's internal "no window" error. Use Aura's
-  // existing native libmpv + dedicated BrowserWindow path in desktop builds.
-  // This switches engines once at the current timestamp; it does not create a
-  // second decoder or mirror frames from a second HTMLVideoElement.
-  const desktop = window.auraDesktop;
-  if (desktop?.isDesktop && !nativeMpvActive) {
-    const item = flatPlaylist[currentPlaylistIndex];
-    if (!item?.file || typeof desktop.startEmbeddedMpv !== 'function' ||
-        typeof desktop.getPathForFile !== 'function') {
-      showPlayerStatus('برای PiP دسکتاپ، مسیر فایل محلی در دسترس نیست.', { error: true });
-      return;
-    }
-    const generation = playbackGeneration;
-    const startTime = Number.isFinite(video.currentTime) ? Math.max(0, video.currentTime) : 0;
-    try {
-      const filePath = item.externalPath || desktop.getPathForFile(item.file);
-      if (!filePath) throw new Error('مسیر فایل برای موتور داخلی در دسترس نیست.');
-      const bounds = playerStage.getBoundingClientRect();
-      const pixelRatio = Math.min(2, Math.max(1, Number(window.devicePixelRatio) || 1));
-      const renderWidth = Math.max(480, Math.min(3840, Math.round(bounds.width * pixelRatio)));
-      const renderHeight = Math.max(270, Math.min(2160, Math.round(bounds.height * pixelRatio)));
-      showPlayerStatus('در حال آماده‌سازی پنجرهٔ شناور…', { timeout: 0 });
-      await desktop.startEmbeddedMpv(filePath, startTime, { width: renderWidth, height: renderHeight });
-      if (generation !== playbackGeneration) {
-        await desktop.stopEmbeddedMpv();
-        return;
-      }
-      stopVideoFrameWatchdog();
-      setEmbeddedMpvActive(true);
-      lastNativeOutputSize = { width: renderWidth, height: renderHeight };
-      releaseActiveVideoSource();
-      await togglePiP();
-    } catch (error) {
-      showPlayerStatus('بازکردن PiP دسکتاپ ناموفق بود: ' + (error?.message || 'خطای نامشخص'), { error: true, timeout: 0 });
-    }
-    return;
-  }
-
+  // Keep the original Chromium-native Picture-in-Picture window.
+  // Do not create Document PiP windows, switch playback engines, or open
+  // Aura's separate native MPV window from this control.
   try {
-    if (window.documentPictureInPicture?.window) {
-      window.documentPictureInPicture.window.close();
+    if (document.pictureInPictureElement === video) {
+      await document.exitPictureInPicture();
       return;
     }
-    if (await openDocumentPictureInPicture()) return;
     if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
-      showPlayerStatus('تصویر در تصویر سفارشی در این نسخهٔ مرورگر پشتیبانی نمی‌شود.', { error: true });
+      showPlayerStatus('تصویر در تصویر بومی در این محیط پشتیبانی نمی‌شود.', { error: true });
+      return;
+    }
+    if (nativeMpvActive) {
+      showPlayerStatus('برای استفاده از PiP بومی، ابتدا پخش Chromium را فعال کن.', { error: true });
       return;
     }
     await video.requestPictureInPicture();
@@ -4077,6 +4014,7 @@ async function togglePiP() {
     showPlayerStatus('ورود به تصویر در تصویر ممکن نشد: ' + (error?.message || 'خطای نامشخص'), { error: true });
   }
 }
+
 /* =========================================================
    FOLDER INPUT
 ========================================================= */
