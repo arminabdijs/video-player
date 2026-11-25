@@ -288,7 +288,7 @@ test('Chromium hardware video-decode status is diagnosed without disabling GPU a
 
 test('Chromium video PiP uses the existing video element in a resizable Document PiP window', () => {
   assert.match(playerSource, /const api = window\.documentPictureInPicture/);
-  assert.match(playerSource, /typeof api\.requestWindow === 'function'/);
+  assert.match(playerSource, /typeof api\.requestWindow !== 'function'/);
   assert.match(playerSource, /pipDocument\.body\.replaceChildren\(shell\)/);
   assert.match(playerSource, /shell\.append\(video, topbar, controls\)/);
   assert.match(playerSource, /object-fit:cover!important/);
