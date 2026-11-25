@@ -10,6 +10,11 @@ const forwardButton = document.getElementById('pipForward');
 const seekSlider = document.getElementById('pipSeek');
 const timeLabel = document.getElementById('pipTime');
 const statusLabel = document.getElementById('pipStatus');
+const titleLabel = document.querySelector('.pip-title');
+
+window.auraPip?.onTitle((title) => {
+  if (titleLabel) titleLabel.textContent = title || 'Aura Player · تصویر در تصویر';
+});
 
 let playbackState = {
   currentTime: 0,
