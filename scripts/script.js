@@ -3993,25 +3993,54 @@ async function openDocumentPictureInPicture() {
 }
 
 async function togglePiP() {
-  // Keep the original Chromium-native Picture-in-Picture window.
-  // Do not create Document PiP windows, switch playback engines, or open
-  // Aura's separate native MPV window from this control.
+  // Native libmpv frames need a real desktop window: Chromium's video PiP API
+  // cannot capture the Canvas, and an in-page CSS overlay cannot float over
+  // other Windows applications.
+  if (nativeMpvActive) {
+    const desktop = window.auraDesktop;
+    if (typeof desktop?.setNativePictureInPicture !== 'function') {
+      showPlayerStatus('پنجرهٔ شناور مستقل در این نسخهٔ دسکتاپ در دسترس نیست.', { error: true });
+      return;
+    }
+    if (nativePipTogglePending) return;
+    nativePipTogglePending = true;
+    if (pipBtn) pipBtn.disabled = true;
+    try {
+      const result = await desktop.setNativePictureInPicture(!desktopPiPActive);
+      if (result && typeof result.active === 'boolean') {
+        desktopPiPActive = result.active;
+        pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
+        if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
+        if (!desktopPiPActive) requestNativeOutputResize();
+      }
+      showPlayerOSD('تصویر در تصویر', desktopPiPActive ? 'روشن' : 'خاموش');
+    } catch (error) {
+      showPlayerStatus(`باز کردن پنجرهٔ شناور ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
+    } finally {
+      nativePipTogglePending = false;
+      if (pipBtn) pipBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
+    showPlayerStatus('تصویر در تصویر توسط این مرورگر پشتیبانی نمی‌شود.', {
+      error: true,
+    });
+
+    return;
+  }
+
   try {
-    if (document.pictureInPictureElement === video) {
+    if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
-      return;
+    } else {
+      await video.requestPictureInPicture();
     }
-    if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
-      showPlayerStatus('تصویر در تصویر بومی در این محیط پشتیبانی نمی‌شود.', { error: true });
-      return;
-    }
-    if (nativeMpvActive) {
-      showPlayerStatus('برای استفاده از PiP بومی، ابتدا پخش Chromium را فعال کن.', { error: true });
-      return;
-    }
-    await video.requestPictureInPicture();
-  } catch (error) {
-    showPlayerStatus('ورود به تصویر در تصویر ممکن نشد: ' + (error?.message || 'خطای نامشخص'), { error: true });
+  } catch {
+    showPlayerStatus('ورود به حالت تصویر در تصویر ممکن نشد.', {
+      error: true,
+    });
   }
 }
 
