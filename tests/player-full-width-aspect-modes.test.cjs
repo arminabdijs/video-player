@@ -66,7 +66,7 @@ test('additional MPV-oriented video extensions are recognized by library scannin
   }
 });
 
-test('Picture-in-Picture keeps native MPV in its independent desktop window and uses Chromium PiP for HTML video', () => {
+test('Picture-in-Picture keeps native MPV independent and uses Document PiP for HTML video', () => {
   const script = read('scripts/script.js');
   const start = script.indexOf('async function togglePiP()');
   const endMatch = /\r?\n\/\* =+\r?\n   FOLDER INPUT/.exec(script.slice(start));
@@ -76,10 +76,31 @@ test('Picture-in-Picture keeps native MPV in its independent desktop window and 
   const toggle = script.slice(start, end);
   assert.match(toggle, /if \(nativeMpvActive\)/);
   assert.match(toggle, /desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
+  assert.match(toggle, /documentPipApi\?*\.requestWindow/);
+  assert.match(toggle, /await openDocumentPictureInPicture\(\)/);
+  assert.match(toggle, /if \(window\.auraDesktop\?\.isDesktop\)/);
   assert.match(toggle, /video\.requestPictureInPicture\(\)/);
-  assert.doesNotMatch(toggle, /documentPictureInPicture\.requestWindow/);
   assert.doesNotMatch(toggle, /desktop\.startEmbeddedMpv\(filePath, startTime/);
   assert.match(toggle, /document\.exitPictureInPicture\(\)/);
+});
+
+test('HTML Document PiP retains a fixed viewport when the same video element changes source', () => {
+  const script = read('scripts/script.js');
+  const start = script.indexOf('async function openDocumentPictureInPicture()');
+  const end = script.indexOf('async function togglePiP()', start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const pip = script.slice(start, end);
+  assert.match(pip, /requestWindow\(\{[\s\S]*?width: size\.width,[\s\S]*?height: size\.height/);
+  assert.match(pip, /preferInitialWindowPlacement:\s*false/);
+  assert.match(pip, /originalParent\.insertBefore\(placeholder, videoElement\)/);
+  assert.match(pip, /shell\.append\(videoElement, topbar, controls\)/);
+  assert.match(pip, /videoElement\.style|videoElement\.setAttribute\('style'/);
+  assert.match(pip, /object-fit:contain/);
+  assert.match(pip, /pipWindow\.addEventListener\('resize', onResize\)/);
+  assert.match(pip, /pipWindow\.addEventListener\('pagehide', onPageHide/);
+  assert.doesNotMatch(pip, /pipWindow\.resizeTo|pipWindow\.resizeBy/);
+  assert.match(script, /videoElement\.src = sourceUrl/);
 });
 test('native PiP can resize freely within the active display work area and persists user bounds', () => {
   const main = read('desktop/main.cjs');
