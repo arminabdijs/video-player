@@ -88,6 +88,9 @@ contextBridge.exposeInMainWorld('auraDesktop', Object.freeze({
   setNativePictureInPicture(active) {
     return ipcRenderer.invoke('aura:desktop-pip-set', Boolean(active));
   },
+  setNativePictureInPictureTitle(title) {
+    return ipcRenderer.invoke('aura:desktop-pip-title', String(title || '').slice(0, 512));
+  },
   onNativePictureInPictureState(listener) {
     if (typeof listener !== 'function') throw new TypeError('PiP state listener must be a function.');
     pipStateListeners.add(listener);
