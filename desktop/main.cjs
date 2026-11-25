@@ -525,6 +525,15 @@ function registerEmbeddedMpvIpc() {
     assertTrustedRenderer(event);
     return active ? openNativePictureInPicture(event) : closeNativePictureInPicture();
   });
+  ipcMain.handle('aura:desktop-pip-title', (event, title) => {
+    assertTrustedRenderer(event);
+    const safeTitle = typeof title === 'string' ? title.trim().slice(0, 512) : '';
+    if (pipWindow && !pipWindow.isDestroyed()) {
+      pipWindow.setTitle(safeTitle ? `Aura Player — ${safeTitle}` : 'Aura Player — تصویر در تصویر');
+      pipWindow.webContents.send('aura:pip-title', safeTitle || 'Aura Player · تصویر در تصویر');
+    }
+    return { updated: Boolean(pipWindow && !pipWindow.isDestroyed()) };
+  });
   ipcMain.on('aura:pip-resize-start', (event, payload) => {
     beginNativePipResize(event, payload);
   });
