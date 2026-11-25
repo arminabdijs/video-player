@@ -4,7 +4,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 const frameListeners = new Set();
 const stateListeners = new Set();
+const titleListeners = new Set();
 let framePort = null;
+
+ipcRenderer.on('aura:pip-title', (_event, title) => {
+  const safeTitle = typeof title === 'string' ? title.slice(0, 512) : 'Aura Player';
+  for (const listener of titleListeners) {
+    try { listener(safeTitle); } catch (error) {
+      console.error('[Aura Player PiP] Title listener failed:', error);
+    }
+  }
+});
 
 ipcRenderer.on('aura:embedded-mpv-channel', (event) => {
   const nextPort = event.ports?.[0];
@@ -51,6 +61,11 @@ contextBridge.exposeInMainWorld('auraPip', Object.freeze({
     if (typeof listener !== 'function') throw new TypeError('State listener must be a function.');
     stateListeners.add(listener);
     return () => stateListeners.delete(listener);
+  },
+  onTitle(listener) {
+    if (typeof listener !== 'function') throw new TypeError('Title listener must be a function.');
+    titleListeners.add(listener);
+    return () => titleListeners.delete(listener);
   },
   command(command) {
     return ipcRenderer.invoke('aura:pip-command', command);
