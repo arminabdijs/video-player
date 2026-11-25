@@ -86,6 +86,26 @@ test('Desktop HTML Picture-in-Picture switches to the native resizable MPV windo
   assert.match(toggle, /document\.exitPictureInPicture\(\)/);
 });
 
+test('Desktop PiP keeps playlist changes in the native session and synchronizes the title', () => {
+  const script = read('scripts/script.js');
+  const start = script.indexOf('async function startBrowserFirstDesktopPlayback');
+  const end = script.indexOf('function playIndex', start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const playback = script.slice(start, end);
+  assert.match(playback, /if \(desktopPiPActive\)/);
+  assert.match(playback, /await tryDesktopMpvFallback\(\)/);
+  assert.ok(playback.indexOf('if (desktopPiPActive)') < playback.indexOf('await desktop.stopEmbeddedMpv'));
+  const main = read('desktop/main.cjs');
+  const preload = read('desktop/preload.cjs');
+  const pipPreload = read('desktop/pip-preload.cjs');
+  const pip = read('desktop/pip.js');
+  assert.match(main, /aura:desktop-pip-title/);
+  assert.match(preload, /setNativePictureInPictureTitle/);
+  assert.match(pipPreload, /aura:pip-title/);
+  assert.match(pip, /onTitle/);
+});
+
 test('Desktop PiP can promote external-path and local HTML media to embedded MPV', () => {
   const script = read('scripts/script.js');
   const start = script.indexOf('async function tryDesktopMpvFallback()');
