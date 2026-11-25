@@ -208,9 +208,15 @@ function persistPipBounds(bounds) {
 
 function getInitialPipBounds() {
   const stored = lastPipBounds;
+  const primaryArea = screen.getPrimaryDisplay().workArea;
   const candidate = stored
     ? { x: stored.x, y: stored.y, width: stored.width, height: stored.height }
-    : { ...screen.getPrimaryDisplay().workArea, width: 480, height: 270 };
+    : {
+        x: primaryArea.x + primaryArea.width - 504,
+        y: primaryArea.y + primaryArea.height - 294,
+        width: 480,
+        height: 270,
+      };
   const area = getPipWorkArea(candidate);
   const limits = getPipSizeLimits(candidate);
   const width = clampPipValue(candidate.width, limits.minWidth, limits.maxWidth);
