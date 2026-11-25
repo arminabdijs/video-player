@@ -69,10 +69,10 @@ test('additional MPV-oriented video extensions are recognized by library scannin
 test('Picture-in-Picture keeps native MPV in its independent desktop window and uses Chromium PiP for HTML video', () => {
   const script = read('scripts/script.js');
   const start = script.indexOf('async function togglePiP()');
-  const end = script.indexOf('/* =========================================================\\n   FOLDER INPUT', start);
+  const end = script.indexOf('\n/* =========================================================\n   FOLDER INPUT', start);
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
-  const toggle = script.slice(script.indexOf('async function togglePiP()'), script.indexOf('\n/* =========================================================\n   FOLDER INPUT'));
+  const toggle = script.slice(start, end);
   assert.match(toggle, /if \(nativeMpvActive\)/);
   assert.match(toggle, /desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
   assert.match(toggle, /video\.requestPictureInPicture\(\)/);
