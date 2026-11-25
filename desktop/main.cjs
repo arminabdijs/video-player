@@ -11,6 +11,7 @@ const APP_ROOT = app.getAppPath();
 let mainWindow = null;
 let pipWindow = null;
 let pipResizeTimer = null;
+let pipBoundsPersistTimer = null;
 let pipResizeState = null;
 let lastPipBounds = null;
 
@@ -225,7 +226,7 @@ function getInitialPipBounds() {
   };
 }
 
-function rememberPipBounds(window = pipWindow) {
+function rememberPipBounds(window = pipWindow, persistImmediately = false) {
   if (!window || window.isDestroyed()) return;
   const bounds = window.getBounds();
   const limits = getPipSizeLimits(bounds);
@@ -235,7 +236,18 @@ function rememberPipBounds(window = pipWindow) {
     width: clampPipValue(bounds.width, limits.minWidth, limits.maxWidth),
     height: clampPipValue(bounds.height, limits.minHeight, limits.maxHeight),
   };
-  persistPipBounds(lastPipBounds);
+
+  if (pipBoundsPersistTimer) clearTimeout(pipBoundsPersistTimer);
+  if (persistImmediately) {
+    pipBoundsPersistTimer = null;
+    persistPipBounds(lastPipBounds);
+    return;
+  }
+  pipBoundsPersistTimer = setTimeout(() => {
+    pipBoundsPersistTimer = null;
+    if (lastPipBounds) persistPipBounds(lastPipBounds);
+  }, 250);
+  pipBoundsPersistTimer.unref?.();
 }
 
 function isTrustedPipResizeEvent(event) {
@@ -366,7 +378,7 @@ async function openNativePictureInPicture(event) {
     rememberPipBounds(window);
     schedulePipRenderResize();
   });
-  window.on('close', () => rememberPipBounds(window));
+  window.on('close', () => rememberPipBounds(window, true));
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (navigationEvent, targetUrl) => {
     if (!isTrustedApplicationDocument(targetUrl, path.join(__dirname, 'pip.html'))) {
