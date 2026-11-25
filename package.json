@@ -149,7 +149,7 @@
       "perMachine": true,
       "allowElevation": true,
       "shortcutName": "Aura Player",
-      "uninstallDisplayName": "Aura Player 2.5.22",
+      "uninstallDisplayName": "Aura Player 2.5.23",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false
     },
