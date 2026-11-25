@@ -69,7 +69,8 @@ test('additional MPV-oriented video extensions are recognized by library scannin
 test('HTML Picture-in-Picture uses the lightweight browser video window without promoting playback to MPV', () => {
   const script = read('scripts/script.js');
   const start = script.indexOf('async function togglePiP()');
-  const end = script.indexOf('\n}\n\n/* =========================================================\n   FOLDER INPUT', start);
+  const endMatch = /\r?\n}\r?\n\r?\n\/\* =+\r?\n\s*FOLDER INPUT/.exec(script.slice(start));
+  const end = endMatch ? start + endMatch.index : -1;
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   const toggle = script.slice(start, end);
