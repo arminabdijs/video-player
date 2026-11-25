@@ -4082,34 +4082,13 @@ async function togglePiP() {
     return;
   }
 
-  // The standard video PiP window derives its size from the current video's
-  // aspect ratio and can resize itself when the source changes. In the desktop
-  // app, never fall back to that behavior: fixed-size PiP requires Document PiP.
-  if (window.auraDesktop?.isDesktop) {
-    showPlayerStatus('پنجرهٔ تصویر در تصویر با اندازهٔ ثابت در این نسخه در دسترس نیست.', {
-      error: true,
-    });
-    return;
-  }
-
-  if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
-    showPlayerStatus('تصویر در تصویر توسط این مرورگر پشتیبانی نمی‌شود.', {
-      error: true,
-    });
-    return;
-  }
-
-  try {
-    if (document.pictureInPictureElement) {
-      await document.exitPictureInPicture();
-    } else {
-      await video.requestPictureInPicture();
-    }
-  } catch {
-    showPlayerStatus('ورود به حالت تصویر در تصویر ممکن نشد.', {
-      error: true,
-    });
-  }
+  // Never fall back to browser-managed video PiP. That window derives its
+  // viewport from the media aspect ratio and may reposition itself whenever
+  // the source changes. Use the persistent Document PiP window instead.
+  showPlayerStatus(
+    'برای حفظ اندازه و موقعیت پنجره هنگام تعویض ویدئو، این مرورگر باید Document Picture-in-Picture را پشتیبانی کند. PiP استاندارد ویدئو در این مرورگر پایدار نیست.',
+    { error: true, timeout: 9000 },
+  );
 }
 
 /* =========================================================
