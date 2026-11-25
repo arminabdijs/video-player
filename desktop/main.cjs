@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 const { EmbeddedMpvHost } = require('./embedded-mpv-host.cjs');
 const { isTrustedApplicationDocument, isTrustedRendererEvent } = require('./trusted-renderer.cjs');
 const { findMediaArgument, describeMediaFile } = require('./media-arguments.cjs');
@@ -15,8 +16,7 @@ let lastPipBounds = null;
 
 const PIP_MIN_WIDTH = 320;
 const PIP_MIN_HEIGHT = 180;
-const PIP_MAX_WIDTH = 960;
-const PIP_MAX_HEIGHT = 640;
+const PIP_BOUNDS_FILE = 'pip-window.json';
 const PIP_RESIZE_DIRECTIONS = new Set(['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']);
 let mainFrameTargetDetached = false;
 let embeddedMpv = null;
@@ -76,6 +76,7 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
+    lastPipBounds = loadStoredPipBounds();
     createMainWindow();
     registerEmbeddedMpvIpc();
     const initialFile = findMediaArgument(process.argv);
@@ -150,42 +151,91 @@ function createMainWindow() {
   void mainWindow.loadFile(path.join(APP_ROOT, 'index.html'));
 }
 
+function getPipWorkArea(referenceBounds) {
+  const display = referenceBounds
+    ? screen.getDisplayMatching(referenceBounds)
+    : screen.getPrimaryDisplay();
+  return display.workArea || display.bounds;
+}
+
+function getPipSizeLimits(referenceBounds) {
+  const area = getPipWorkArea(referenceBounds);
+  return {
+    minWidth: Math.min(PIP_MIN_WIDTH, area.width),
+    minHeight: Math.min(PIP_MIN_HEIGHT, area.height),
+    maxWidth: Math.max(1, area.width),
+    maxHeight: Math.max(1, area.height),
+  };
+}
+
 function clampPipValue(value, minimum, maximum) {
-  return Math.max(minimum, Math.min(maximum, Math.round(Number(value) || minimum)));
+  const safeMaximum = Math.max(minimum, maximum);
+  const numeric = Number(value);
+  return Math.max(minimum, Math.min(safeMaximum, Math.round(Number.isFinite(numeric) ? numeric : minimum)));
+}
+
+function loadStoredPipBounds() {
+  try {
+    const filePath = path.join(app.getPath('userData'), PIP_BOUNDS_FILE);
+    const stored = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!stored || !['x', 'y', 'width', 'height'].every((key) => Number.isFinite(Number(stored[key])))) {
+      return null;
+    }
+    return {
+      x: Math.round(Number(stored.x)),
+      y: Math.round(Number(stored.y)),
+      width: Math.round(Number(stored.width)),
+      height: Math.round(Number(stored.height)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistPipBounds(bounds) {
+  try {
+    const directory = app.getPath('userData');
+    fs.mkdirSync(directory, { recursive: true });
+    const filePath = path.join(directory, PIP_BOUNDS_FILE);
+    const temporaryPath = `${filePath}.tmp`;
+    fs.writeFileSync(temporaryPath, JSON.stringify(bounds), 'utf8');
+    fs.renameSync(temporaryPath, filePath);
+  } catch (error) {
+    console.warn('[Aura Player] Could not persist PiP window bounds:', error?.message || error);
+  }
 }
 
 function getInitialPipBounds() {
-  if (!lastPipBounds) return { width: 480, height: 270 };
-
-  const width = clampPipValue(lastPipBounds.width, PIP_MIN_WIDTH, PIP_MAX_WIDTH);
-  const height = clampPipValue(lastPipBounds.height, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT);
-  const candidate = {
-    x: Math.round(Number(lastPipBounds.x) || 0),
-    y: Math.round(Number(lastPipBounds.y) || 0),
-    width,
-    height,
-  };
-  const display = screen.getDisplayMatching(candidate);
-  const area = display.workArea || display.bounds;
+  const stored = lastPipBounds;
+  const candidate = stored
+    ? { x: stored.x, y: stored.y, width: stored.width, height: stored.height }
+    : { ...screen.getPrimaryDisplay().workArea, width: 480, height: 270 };
+  const area = getPipWorkArea(candidate);
+  const limits = getPipSizeLimits(candidate);
+  const width = clampPipValue(candidate.width, limits.minWidth, limits.maxWidth);
+  const height = clampPipValue(candidate.height, limits.minHeight, limits.maxHeight);
   const maxX = Math.max(area.x, area.x + area.width - width);
   const maxY = Math.max(area.y, area.y + area.height - height);
 
   return {
-    ...candidate,
-    x: Math.max(area.x, Math.min(maxX, candidate.x)),
-    y: Math.max(area.y, Math.min(maxY, candidate.y)),
+    x: Math.max(area.x, Math.min(maxX, Math.round(Number(candidate.x) || area.x))),
+    y: Math.max(area.y, Math.min(maxY, Math.round(Number(candidate.y) || area.y))),
+    width,
+    height,
   };
 }
 
 function rememberPipBounds(window = pipWindow) {
   if (!window || window.isDestroyed()) return;
   const bounds = window.getBounds();
+  const limits = getPipSizeLimits(bounds);
   lastPipBounds = {
     x: Math.round(bounds.x),
     y: Math.round(bounds.y),
-    width: clampPipValue(bounds.width, PIP_MIN_WIDTH, PIP_MAX_WIDTH),
-    height: clampPipValue(bounds.height, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT),
+    width: clampPipValue(bounds.width, limits.minWidth, limits.maxWidth),
+    height: clampPipValue(bounds.height, limits.minHeight, limits.maxHeight),
   };
+  persistPipBounds(lastPipBounds);
 }
 
 function isTrustedPipResizeEvent(event) {
@@ -229,22 +279,23 @@ function updateNativePipResize(event, payload) {
   const deltaX = screenX - state.pointerX;
   const deltaY = screenY - state.pointerY;
   const { x: originalX, y: originalY, width: originalWidth, height: originalHeight } = state.bounds;
+  const limits = getPipSizeLimits(state.bounds);
   let x = originalX;
   let y = originalY;
   let width = originalWidth;
   let height = originalHeight;
 
   if (state.direction.includes('e')) {
-    width = clampPipValue(originalWidth + deltaX, PIP_MIN_WIDTH, PIP_MAX_WIDTH);
+    width = clampPipValue(originalWidth + deltaX, limits.minWidth, limits.maxWidth);
   } else if (state.direction.includes('w')) {
-    width = clampPipValue(originalWidth - deltaX, PIP_MIN_WIDTH, PIP_MAX_WIDTH);
+    width = clampPipValue(originalWidth - deltaX, limits.minWidth, limits.maxWidth);
     x = originalX + originalWidth - width;
   }
 
   if (state.direction.includes('s')) {
-    height = clampPipValue(originalHeight + deltaY, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT);
+    height = clampPipValue(originalHeight + deltaY, limits.minHeight, limits.maxHeight);
   } else if (state.direction.includes('n')) {
-    height = clampPipValue(originalHeight - deltaY, PIP_MIN_HEIGHT, PIP_MAX_HEIGHT);
+    height = clampPipValue(originalHeight - deltaY, limits.minHeight, limits.maxHeight);
     y = originalY + originalHeight - height;
   }
 
@@ -277,10 +328,8 @@ async function openNativePictureInPicture(event) {
   const restoredBounds = getInitialPipBounds();
   const window = new BrowserWindow({
     ...restoredBounds,
-    minWidth: PIP_MIN_WIDTH,
-    minHeight: PIP_MIN_HEIGHT,
-    maxWidth: PIP_MAX_WIDTH,
-    maxHeight: PIP_MAX_HEIGHT,
+    minWidth: getPipSizeLimits(restoredBounds).minWidth,
+    minHeight: getPipSizeLimits(restoredBounds).minHeight,
     useContentSize: true,
     backgroundColor: '#08090d',
     show: false,
