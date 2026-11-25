@@ -20,7 +20,7 @@ const pipHtmlSource = fs.readFileSync(path.join(root, 'desktop/pip.html'), 'utf8
 const pipPlayerSource = fs.readFileSync(path.join(root, 'desktop/pip.js'), 'utf8');
 
 test('desktop build is pinned to the embedded-renderer release', () => {
-  assert.equal(packageJson.version, '2.5.22');
+  assert.equal(packageJson.version, '2.5.23');
   assert.equal(packageJson.main, 'desktop/main.cjs');
   assert.ok(packageJson.scripts['native:build']);
   assert.match(packageJson.scripts['desktop:dev'], /native:build/);
@@ -283,4 +283,18 @@ test('Chromium hardware video-decode status is diagnosed without disabling GPU a
   assert.ok(mainSource.includes('features.video_decode'));
   assert.ok(mainSource.includes('app.isHardwareAccelerationEnabled()'));
   assert.ok(!mainSource.includes('app.disableHardwareAcceleration('));
+});
+
+
+test('Chromium video PiP uses the existing video element in a resizable Document PiP window', () => {
+  assert.match(playerSource, /window\.documentPictureInPicture\?\.requestWindow/);
+  assert.match(playerSource, /pipDocument\.body\.replaceChildren\(shell\)/);
+  assert.match(playerSource, /shell\.append\(video, topbar, controls\)/);
+  assert.match(playerSource, /object-fit:cover!important/);
+  assert.match(playerSource, /aura-player-document-pip-size-v1/);
+  assert.match(playerSource, /pipWindow\.addEventListener\('resize', onResize\)/);
+  assert.match(playerSource, /pipWindow\.addEventListener\('pagehide', onPageHide/);
+  assert.match(playerSource, /placeholder\.parentNode\.insertBefore\(video, placeholder\)/);
+  assert.doesNotMatch(playerSource, /video\.captureStream\(/);
+  assert.doesNotMatch(playerSource, /drawImage\(video/);
 });
