@@ -68,7 +68,11 @@ test('additional MPV-oriented video extensions are recognized by library scannin
 
 test('Picture-in-Picture keeps native MPV in its independent desktop window and uses Chromium PiP for HTML video', () => {
   const script = read('scripts/script.js');
-  const toggle = script.slice(script.indexOf('async function togglePiP()'), script.indexOf('\\n/* =========================================================\\n   FOLDER INPUT'));
+  const start = script.indexOf('async function togglePiP()');
+  const end = script.indexOf('/* =========================================================\\n   FOLDER INPUT', start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const toggle = script.slice(start, end);
   assert.match(toggle, /if \\(nativeMpvActive\\)/);
   assert.match(toggle, /desktop\\.setNativePictureInPicture\\(!desktopPiPActive\\)/);
   assert.match(toggle, /video\\.requestPictureInPicture\\(\\)/);
@@ -76,7 +80,6 @@ test('Picture-in-Picture keeps native MPV in its independent desktop window and 
   assert.doesNotMatch(toggle, /desktop\\.startEmbeddedMpv\\(filePath, startTime/);
   assert.match(toggle, /document\\.exitPictureInPicture\\(\\)/);
 });
-
 test('native video output dimension probing is throttled while codecs publish stream metadata', () => {
   const native = read('native/mpv-frame-host/main.cpp');
   assert.match(native, /auto nextOutputProbe = nextState/);
