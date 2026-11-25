@@ -4054,6 +4054,8 @@ async function togglePiP() {
       pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
       if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
       if (!desktopPiPActive) throw new Error('پنجرهٔ شناور باز نشد.');
+      const currentItem = flatPlaylist[currentPlaylistIndex];
+      await desktop.setNativePictureInPictureTitle?.(currentItem?.name || 'Aura Player');
       showPlayerOSD('تصویر در تصویر', 'روشن');
     } catch (error) {
       showPlayerStatus(`باز کردن پنجرهٔ شناور ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
