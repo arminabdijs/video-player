@@ -5065,6 +5065,7 @@ pipBtn?.addEventListener('click', (event) => {
 });
 
 if (typeof window.auraDesktop?.setNativePictureInPicture !== 'function' &&
+    typeof window.documentPictureInPicture?.requestWindow !== 'function' &&
     (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function')) {
   if (pipBtn) {
     pipBtn.disabled = true;
