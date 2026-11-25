@@ -3840,16 +3840,17 @@ async function openDocumentPictureInPicture() {
     return true;
   }
 
-  const originalParent = video.parentNode;
+  const originalParent = videoElement.parentNode;
   if (!originalParent) throw new Error('عنصر ویدئو در صفحه پیدا نشد.');
   const placeholder = document.createComment('Aura Player video position');
-  const originalStyle = video.getAttribute('style');
-  const originalControls = video.controls;
+  const originalStyle = videoElement.getAttribute('style');
+  const originalControls = videoElement.controls;
   const size = getDocumentPipInitialSize();
   const pipWindow = await api.requestWindow({
     width: size.width,
     height: size.height,
     disallowReturnToOpener: false,
+    preferInitialWindowPlacement: false,
   });
   const pipDocument = pipWindow.document;
   const style = pipDocument.createElement('style');
@@ -3911,18 +3912,18 @@ async function openDocumentPictureInPicture() {
   const time = pipDocument.createElement('time');
   time.textContent = '00:00 / 00:00';
   controls.append(play, seek, time);
-  originalParent.insertBefore(placeholder, video);
-  shell.append(video, topbar, controls);
+  originalParent.insertBefore(placeholder, videoElement);
+  shell.append(videoElement, topbar, controls);
   pipDocument.body.replaceChildren(shell);
   const restore = () => {
     if (documentPipRestore !== restore) return;
     documentPipRestore = null;
     try {
-      if (placeholder.parentNode) placeholder.parentNode.insertBefore(video, placeholder);
+      if (placeholder.parentNode) placeholder.parentNode.insertBefore(videoElement, placeholder);
       placeholder.remove();
-      if (originalStyle === null) video.removeAttribute('style');
-      else video.setAttribute('style', originalStyle);
-      video.controls = originalControls;
+      if (originalStyle === null) videoElement.removeAttribute('style');
+      else videoElement.setAttribute('style', originalStyle);
+      videoElement.controls = originalControls;
       playerStage?.classList.remove('document-pip-active');
       pipBtn?.setAttribute('aria-pressed', 'false');
       if (pipBtn) pipBtn.title = 'تصویر در تصویر (I)';
@@ -4023,11 +4024,36 @@ async function togglePiP() {
     return;
   }
 
+  const documentPipApi = window.documentPictureInPicture;
+  if (typeof documentPipApi?.requestWindow === 'function') {
+    try {
+      if (documentPipApi.window) {
+        documentPipApi.window.close();
+      } else {
+        await openDocumentPictureInPicture();
+      }
+    } catch (error) {
+      showPlayerStatus(`ورود به تصویر در تصویر ناموفق بود: ${error?.message || 'خطای نامشخص'}`, {
+        error: true,
+      });
+    }
+    return;
+  }
+
+  // The standard video PiP window derives its size from the current video's
+  // aspect ratio and can resize itself when the source changes. In the desktop
+  // app, never fall back to that behavior: fixed-size PiP requires Document PiP.
+  if (window.auraDesktop?.isDesktop) {
+    showPlayerStatus('پنجرهٔ تصویر در تصویر با اندازهٔ ثابت در این نسخه در دسترس نیست.', {
+      error: true,
+    });
+    return;
+  }
+
   if (!document.pictureInPictureEnabled || typeof video.requestPictureInPicture !== 'function') {
     showPlayerStatus('تصویر در تصویر توسط این مرورگر پشتیبانی نمی‌شود.', {
       error: true,
     });
-
     return;
   }
 
