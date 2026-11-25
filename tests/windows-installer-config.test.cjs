@@ -11,7 +11,7 @@ const buildScript = fs.readFileSync(path.join(root, 'scripts/Build-Windows-Setup
 const prepareScript = fs.readFileSync(path.join(root, 'scripts/Prepare-Windows-Native.ps1'), 'utf8');
 
 test('Windows release produces an NSIS Setup only, not a portable build', () => {
-  assert.equal(pkg.version, '2.5.23');
+  assert.equal(pkg.version, '2.5.24');
   assert.deepEqual(pkg.build.win.target, [{ target: 'nsis', arch: ['x64'] }]);
   assert.equal(pkg.build.win.artifactName, '${productName}-Setup-${version}-${arch}.${ext}');
   assert.match(pkg.scripts['desktop:dist:windows'], /Build-Windows-Setup\.ps1/);
