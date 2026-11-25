@@ -98,6 +98,9 @@ test('HTML Document PiP retains a fixed viewport when the same video element cha
   assert.match(pip, /videoElement\.style|videoElement\.setAttribute\('style'/);
   assert.match(pip, /object-fit:contain/);
   assert.match(pip, /pipWindow\.addEventListener\('resize', onResize\)/);
+  assert.match(pip, /width: Math\.round\(pipWindow\.innerWidth \|\| pipWindow\.outerWidth\)/);
+  assert.match(pip, /height: Math\.round\(pipWindow\.innerHeight \|\| pipWindow\.outerHeight\)/);
+  assert.match(pip, /const onPageHide = \(\) => \{\s*onResize\(\)/);
   assert.match(pip, /pipWindow\.addEventListener\('pagehide', onPageHide/);
   assert.doesNotMatch(pip, /pipWindow\.resizeTo|pipWindow\.resizeBy/);
   assert.match(script, /videoElement\.src = sourceUrl/);
