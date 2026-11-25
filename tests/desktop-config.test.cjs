@@ -20,7 +20,10 @@ const pipHtmlSource = fs.readFileSync(path.join(root, 'desktop/pip.html'), 'utf8
 const pipPlayerSource = fs.readFileSync(path.join(root, 'desktop/pip.js'), 'utf8');
 
 test('desktop build is pinned to the embedded-renderer release', () => {
-  assert.equal(packageJson.version, '2.5.26');
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
+  assert.equal(require('../package-lock.json').version, packageJson.version);
+  assert.equal(require('../package-lock.json').packages[''].version, packageJson.version);
+  assert.equal(packageJson.build.nsis.uninstallDisplayName, `Aura Player ${packageJson.version}`);
   assert.equal(packageJson.main, 'desktop/main.cjs');
   assert.ok(packageJson.scripts['native:build']);
   assert.match(packageJson.scripts['desktop:dev'], /native:build/);
