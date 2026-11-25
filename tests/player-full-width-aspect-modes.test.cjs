@@ -66,47 +66,14 @@ test('additional MPV-oriented video extensions are recognized by library scannin
   }
 });
 
-test('the Picture-in-Picture control opens a real desktop window for native Canvas playback', () => {
+test('the Picture-in-Picture control uses the original Chromium-native video PiP path', () => {
   const script = read('scripts/script.js');
-  const main = read('desktop/main.cjs');
-  const pipHtml = read('desktop/pip.html');
-  const pipRenderer = read('desktop/pip.js');
-  const pipPreload = read('desktop/pip-preload.cjs');
-  const css = read('css/style.css');
-
-  assert.match(script, /if \(nativeMpvActive\) \{[\s\S]*?desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
-  assert.match(script, /onNativePictureInPictureState/);
-  assert.doesNotMatch(script, /playerStage\.classList\.toggle\('is-picture-in-picture'\)/);
-  assert.match(main, /new BrowserWindow\(\{[\s\S]*?alwaysOnTop: true/);
-  assert.match(main, /setAlwaysOnTop\(true, 'screen-saver'\)/);
-  assert.match(pipHtml, /id="pipCanvas"/);
-  assert.match(pipRenderer, /context\.putImageData/);
-  assert.match(pipRenderer, /toggle-pause/);
-  assert.match(main, /PIP_RESIZE_DIRECTIONS/);
-  assert.match(main, /isTrustedPipResizeEvent/);
-  assert.match(main, /beginNativePipResize/);
-  assert.match(main, /updateNativePipResize/);
-  assert.match(main, /getInitialPipBounds\(\)/);
-  assert.match(main, /rememberPipBounds\(window\)/);
-  assert.match(main, /window\.on\('close', \(\) => rememberPipBounds\(window\)\)/);
-  assert.match(main, /const size = getNativePipRenderSize\(\) \|\| payload\?\.size/);
-  assert.match(pipPreload, /aura:pip-resize-start/);
-  assert.match(pipPreload, /aura:pip-resize-update/);
-  assert.match(pipPreload, /aura:pip-resize-end/);
-  for (const direction of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']) {
-    assert.match(pipHtml, new RegExp(`data-pip-resize="${direction}"`));
-  }
-  assert.match(pipHtml, /-webkit-app-region: drag/);
-  assert.match(pipHtml, /cursor: move/);
-  assert.match(pipRenderer, /setPointerCapture/);
-  assert.match(pipRenderer, /updateResize\(event\.screenX, event\.screenY\)/);
-  assert.match(script, /playerStage\?\.classList\.toggle\('desktop-native-pip-active', desktopPiPActive\)/);
-  assert.match(script, /if \(desktopPiPActive\) lastNativeOutputSize = \{ width: 0, height: 0 \}/);
-  assert.match(script, /lastNativeOutputSize = desktopPiPActive\s*\? \{ width: 0, height: 0 \}/);
-  assert.match(script, /if \(!nativeMpvActive \|\| desktopPiPActive \|\| nativeResizeRaf/);
-  assert.match(css, /\.m3-player-card\.desktop-native-pip-active::after/);
-  assert.match(css, /background: rgba\(0, 0, 0, \.72\)/);
-  assert.match(script, /video\.requestPictureInPicture\(\)/);
+  assert.match(script, /async function togglePiP\(\)[\s\S]*?video\.requestPictureInPicture\(\)/);
+  assert.doesNotMatch(script, /documentPictureInPicture\.requestWindow/);
+  assert.doesNotMatch(script, /desktop\.setNativePictureInPicture\(!desktopPiPActive\)/);
+  assert.doesNotMatch(script, /desktop\.startEmbeddedMpv\(filePath, startTime/);
+  assert.match(script, /document\.pictureInPictureElement === video/);
+  assert.match(script, /document\.exitPictureInPicture\(\)/);
 });
 
 
