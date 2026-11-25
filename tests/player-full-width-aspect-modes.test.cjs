@@ -81,6 +81,25 @@ test('Picture-in-Picture keeps native MPV in its independent desktop window and 
   assert.doesNotMatch(toggle, /desktop\.startEmbeddedMpv\(filePath, startTime/);
   assert.match(toggle, /document\.exitPictureInPicture\(\)/);
 });
+test('native PiP can resize freely within the active display work area and persists user bounds', () => {
+  const main = read('desktop/main.cjs');
+  const pip = read('desktop/pip.html');
+  const renderer = read('desktop/pip.js');
+  assert.match(main, /function getPipSizeLimits\(referenceBounds\)/);
+  assert.match(main, /maxWidth:\s*Math\.max\(1, area\.width\)/);
+  assert.match(main, /maxHeight:\s*Math\.max\(1, area\.height\)/);
+  assert.match(main, /function loadStoredPipBounds\(\)/);
+  assert.match(main, /function persistPipBounds\(bounds\)/);
+  assert.match(main, /fs\.renameSync\(temporaryPath, filePath\)/);
+  assert.match(main, /pip-window\.json/);
+  assert.doesNotMatch(main, /PIP_MAX_WIDTH|PIP_MAX_HEIGHT/);
+  for (const direction of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']) {
+    assert.match(pip, new RegExp(`data-pip-resize="${direction}"`));
+  }
+  assert.match(renderer, /window\.auraPip\?\.startResize\(direction, event\.screenX, event\.screenY\)/);
+  assert.match(renderer, /window\.auraPip\?\.updateResize\(event\.screenX, event\.screenY\)/);
+});
+
 test('native video output dimension probing is throttled while codecs publish stream metadata', () => {
   const native = read('native/mpv-frame-host/main.cpp');
   assert.match(native, /auto nextOutputProbe = nextState/);
