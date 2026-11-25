@@ -76,24 +76,28 @@
       -webkit-app-region: no-drag;
     }
     .pip-resize-n, .pip-resize-s {
-      left: 14px;
-      right: 14px;
-      height: 7px;
+      left: 28px;
+      right: 28px;
+      height: 10px;
       cursor: ns-resize;
     }
     .pip-resize-n { top: 0; }
     .pip-resize-s { bottom: 0; }
     .pip-resize-e, .pip-resize-w {
-      top: 14px;
-      bottom: 14px;
-      width: 7px;
+      top: 28px;
+      bottom: 28px;
+      width: 10px;
       cursor: ew-resize;
     }
     .pip-resize-e { right: 0; }
     .pip-resize-w { left: 0; }
     .pip-resize-ne, .pip-resize-nw, .pip-resize-se, .pip-resize-sw {
-      width: 16px;
-      height: 16px;
+      z-index: 20;
+      width: 30px;
+      height: 30px;
+    }
+    .pip-resize-handle:active {
+      background: rgba(167,139,250,.10);
     }
     .pip-resize-ne { top: 0; right: 0; cursor: nesw-resize; }
     .pip-resize-nw { top: 0; left: 0; cursor: nwse-resize; }
