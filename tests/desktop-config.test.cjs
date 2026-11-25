@@ -296,7 +296,7 @@ test('Chromium video PiP uses the existing video element in a resizable Document
   assert.match(pipSource, /typeof api\.requestWindow !== 'function'/);
   assert.match(pipSource, /pipDocument\.body\.replaceChildren\(shell\)/);
   assert.match(pipSource, /shell\.append\(video, topbar, controls\)/);
-  assert.match(pipSource, /object-fit:cover!important/);
+  assert.match(pipSource, /object-fit:contain!important/);
   assert.match(pipSource, /aura-player-document-pip-size-v1/);
   assert.match(pipSource, /pipWindow\.addEventListener\('resize', onResize\)/);
   assert.match(pipSource, /pipWindow\.addEventListener\('pagehide', onPageHide/);
