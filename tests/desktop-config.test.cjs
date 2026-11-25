@@ -287,15 +287,20 @@ test('Chromium hardware video-decode status is diagnosed without disabling GPU a
 
 
 test('Chromium video PiP uses the existing video element in a resizable Document PiP window', () => {
-  assert.match(playerSource, /const api = window\.documentPictureInPicture/);
-  assert.match(playerSource, /typeof api\.requestWindow !== 'function'/);
-  assert.match(playerSource, /pipDocument\.body\.replaceChildren\(shell\)/);
-  assert.match(playerSource, /shell\.append\(video, topbar, controls\)/);
-  assert.match(playerSource, /object-fit:cover!important/);
-  assert.match(playerSource, /aura-player-document-pip-size-v1/);
-  assert.match(playerSource, /pipWindow\.addEventListener\('resize', onResize\)/);
-  assert.match(playerSource, /pipWindow\.addEventListener\('pagehide', onPageHide/);
-  assert.match(playerSource, /placeholder\.parentNode\.insertBefore\(video, placeholder\)/);
-  assert.doesNotMatch(playerSource, /video\.captureStream\(/);
-  assert.doesNotMatch(playerSource, /drawImage\(video/);
+  const pipStart = playerSource.indexOf('async function openDocumentPictureInPicture()');
+  const pipEnd = playerSource.indexOf('\nasync function togglePiP()', pipStart);
+  assert.notEqual(pipStart, -1, 'Document PiP implementation must exist');
+  assert.notEqual(pipEnd, -1, 'Document PiP implementation must have a clear boundary');
+  const pipSource = playerSource.slice(pipStart, pipEnd);
+  assert.match(pipSource, /const api = window\.documentPictureInPicture/);
+  assert.match(pipSource, /typeof api\.requestWindow !== 'function'/);
+  assert.match(pipSource, /pipDocument\.body\.replaceChildren\(shell\)/);
+  assert.match(pipSource, /shell\.append\(video, topbar, controls\)/);
+  assert.match(pipSource, /object-fit:cover!important/);
+  assert.match(pipSource, /aura-player-document-pip-size-v1/);
+  assert.match(pipSource, /pipWindow\.addEventListener\('resize', onResize\)/);
+  assert.match(pipSource, /pipWindow\.addEventListener\('pagehide', onPageHide/);
+  assert.match(pipSource, /placeholder\.parentNode\.insertBefore\(video, placeholder\)/);
+  assert.doesNotMatch(pipSource, /video\.captureStream\(/);
+  assert.doesNotMatch(pipSource, /drawImage\(video/);
 });
