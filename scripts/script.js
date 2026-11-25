@@ -3956,12 +3956,13 @@ async function openDocumentPictureInPicture() {
   const onResize = () => {
     try {
       localStorage.setItem('aura-player-document-pip-size-v1', JSON.stringify({
-        width: Math.round(pipWindow.outerWidth || pipWindow.innerWidth),
-        height: Math.round(pipWindow.outerHeight || pipWindow.innerHeight),
+        width: Math.round(pipWindow.innerWidth || pipWindow.outerWidth),
+        height: Math.round(pipWindow.innerHeight || pipWindow.outerHeight),
       }));
     } catch { /* persistence is best-effort */ }
   };
   const onPageHide = () => {
+    onResize();
     video.removeEventListener('timeupdate', update);
     video.removeEventListener('durationchange', update);
     video.removeEventListener('play', update);
