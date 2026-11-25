@@ -96,6 +96,9 @@ test('native PiP can resize freely within the active display work area and persi
   for (const direction of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']) {
     assert.match(pip, new RegExp(`data-pip-resize="${direction}"`));
   }
+  assert.match(pip, /z-index:\s*20;[\s\S]*?width:\s*30px;[\s\S]*?height:\s*30px;/);
+  assert.match(pip, /\.pip-resize-n, \.pip-resize-s[\s\S]*?height:\s*10px;/);
+  assert.match(pip, /\.pip-resize-e, \.pip-resize-w[\s\S]*?width:\s*10px;/);
   assert.match(renderer, /window\.auraPip\?\.startResize\(direction, event\.screenX, event\.screenY\)/);
   assert.match(renderer, /window\.auraPip\?\.updateResize\(event\.screenX, event\.screenY\)/);
 });
