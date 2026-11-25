@@ -4009,13 +4009,12 @@ async function openDocumentPictureInPicture() {
 }
 
 async function togglePiP() {
-  // Native libmpv frames need a real desktop window: Chromium's video PiP API
-  // cannot capture the Canvas, and an in-page CSS overlay cannot float over
-  // other Windows applications.
+  // MPV renders into a Canvas, which the browser video PiP API cannot capture.
+  // Keep the existing native window only for this unsupported-codec fallback.
   if (nativeMpvActive) {
     const desktop = window.auraDesktop;
     if (typeof desktop?.setNativePictureInPicture !== 'function') {
-      showPlayerStatus('پنجرهٔ شناور مستقل در این نسخهٔ دسکتاپ در دسترس نیست.', { error: true });
+      showPlayerStatus('تصویر در تصویر برای موتور داخلی در دسترس نیست.', { error: true });
       return;
     }
     if (nativePipTogglePending) return;
@@ -4039,56 +4038,23 @@ async function togglePiP() {
     return;
   }
 
-  const desktop = window.auraDesktop;
-  if (desktop?.isDesktop) {
-    if (nativePipTogglePending) return;
-    nativePipTogglePending = true;
-    if (pipBtn) pipBtn.disabled = true;
-    try {
-      const fallback = await tryDesktopMpvFallback();
-      if (!fallback.opened || !nativeMpvActive) {
-        throw new Error('انتقال ویدئو به موتور داخلی برای ساخت پنجرهٔ شناور ناموفق بود.');
-      }
-      const result = await desktop.setNativePictureInPicture(true);
-      desktopPiPActive = Boolean(result?.active);
-      pipBtn?.setAttribute('aria-pressed', String(desktopPiPActive));
-      if (pipBtn) pipBtn.title = desktopPiPActive ? 'خروج از تصویر در تصویر' : 'تصویر در تصویر (I)';
-      if (!desktopPiPActive) throw new Error('پنجرهٔ شناور باز نشد.');
-      const currentItem = flatPlaylist[currentPlaylistIndex];
-      await desktop.setNativePictureInPictureTitle?.(currentItem?.name || 'Aura Player');
-      showPlayerOSD('تصویر در تصویر', 'روشن');
-    } catch (error) {
-      showPlayerStatus(`باز کردن پنجرهٔ شناور ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
-    } finally {
-      nativePipTogglePending = false;
-      if (pipBtn) pipBtn.disabled = false;
-    }
+  // For normal HTML playback use Chromium's lightweight native video PiP.
+  // Reuse the same HTMLVideoElement when the playlist advances; do not create
+  // a second renderer, Canvas capture stream, or a custom always-on-top window.
+  if (!document.pictureInPictureEnabled || typeof videoElement.requestPictureInPicture !== 'function') {
+    showPlayerStatus('تصویر در تصویر توسط این نسخه از مرورگر پشتیبانی نمی‌شود.', { error: true });
     return;
   }
 
-  const documentPipApi = window.documentPictureInPicture;
-  if (typeof documentPipApi?.requestWindow === 'function') {
-    try {
-      if (documentPipApi.window) {
-        documentPipApi.window.close();
-      } else {
-        await openDocumentPictureInPicture();
-      }
-    } catch (error) {
-      showPlayerStatus(`ورود به تصویر در تصویر ناموفق بود: ${error?.message || 'خطای نامشخص'}`, {
-        error: true,
-      });
+  try {
+    if (document.pictureInPictureElement === videoElement) {
+      await document.exitPictureInPicture();
+    } else {
+      await videoElement.requestPictureInPicture();
     }
-    return;
+  } catch (error) {
+    showPlayerStatus(`ورود به تصویر در تصویر ناموفق بود: ${error?.message || 'خطای نامشخص'}`, { error: true });
   }
-
-  // Never fall back to browser-managed video PiP. That window derives its
-  // viewport from the media aspect ratio and may reposition itself whenever
-  // the source changes. Use the persistent Document PiP window instead.
-  showPlayerStatus(
-    'برای حفظ اندازه و موقعیت پنجره هنگام تعویض ویدئو، این مرورگر باید Document Picture-in-Picture را پشتیبانی کند. PiP استاندارد ویدئو در این مرورگر پایدار نیست.',
-    { error: true, timeout: 9000 },
-  );
 }
 
 /* =========================================================
@@ -4380,9 +4346,16 @@ video.addEventListener('pause', () => {
   clearControlsTimer();
 });
 
+let lastAutoAdvanceGeneration = -1;
+
 video.addEventListener('ended', () => {
   syncDrawerPlaybackState();
   document.documentElement.classList.remove('aura-video-active');
+
+  // Chromium can report the final media event more than once around a source
+  // replacement. Advance exactly once for the playback generation that ended.
+  if (lastAutoAdvanceGeneration === playbackGeneration) return;
+  lastAutoAdvanceGeneration = playbackGeneration;
   playNextVideo();
 });
 
