@@ -3859,7 +3859,7 @@ async function openDocumentPictureInPicture() {
     'html,body{width:100%;height:100%;min-width:280px;min-height:158px;margin:0;overflow:hidden;background:transparent}',
     'body{font-family:"Segoe UI",Tahoma,sans-serif}',
     '.aura-document-pip{position:relative;width:100%;height:100%;overflow:hidden;border-radius:15px;background:#050608;box-shadow:0 10px 34px rgba(0,0,0,.48),0 2px 8px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.14);isolation:isolate}',
-    '.aura-document-pip video{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;border:0!important;border-radius:15px!important;object-fit:cover!important;object-position:center center!important;background:#050608}',
+    '.aura-document-pip video{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;border:0!important;border-radius:15px!important;object-fit:contain!important;object-position:center center!important;background:#050608}',
     '.aura-document-pip-top,.aura-document-pip-controls{position:absolute;z-index:4;left:0;right:0;display:flex;align-items:center;opacity:0;pointer-events:none;transition:opacity 140ms ease}',
     '.aura-document-pip-top{top:0;height:42px;padding:6px 9px 6px 13px;justify-content:space-between;color:#fff;font:600 11px "Segoe UI",sans-serif;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}',
     '.aura-document-pip-controls{bottom:0;min-height:58px;padding:8px 12px 10px;gap:9px;background:linear-gradient(0deg,rgba(0,0,0,.86),transparent)}',
