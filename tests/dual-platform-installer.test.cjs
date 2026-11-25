@@ -27,7 +27,8 @@ function findInstallerGuide() {
 const installerGuide = findInstallerGuide();
 
 test('one current-host command is available for Linux and Windows installers', () => {
-  assert.equal(pkg.version, '2.5.26');
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
+  assert.equal(pkg.build.nsis.uninstallDisplayName, `Aura Player ${pkg.version}`);
   assert.equal(pkg.scripts['desktop:dist:current'], 'node scripts/build-current-installer.cjs');
   assert.match(currentBuilder, /process\.platform === 'linux'/);
   assert.match(currentBuilder, /desktop:dist:linux/);
