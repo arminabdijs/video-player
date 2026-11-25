@@ -3973,7 +3973,6 @@ async function openDocumentPictureInPicture() {
   play.addEventListener('click', togglePlayback);
   close.addEventListener('click', () => pipWindow.close());
   seek.addEventListener('input', onSeek);
-  video.addEventListener('click', togglePlayback);
   video.addEventListener('timeupdate', update);
   video.addEventListener('durationchange', update);
   video.addEventListener('play', update);
